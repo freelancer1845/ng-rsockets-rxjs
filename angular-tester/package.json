@@ -1,5 +1,5 @@
 {
-  "name": "ng-rsocket-rxjs",
+  "name": "angular-tester",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -21,17 +21,16 @@
     "@angular/router": "~10.0.3",
     "rxjs": "~6.5.5",
     "tslib": "^2.0.0",
-    "typescript-logging": "^1.0.0",
-    "zone.js": "~0.10.3"
+    "zone.js": "~0.10.3",
+    "ng-rsocket-rxjs": "file:../dist/ng-rsocket-rxjs"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "~0.1000.8",
-    "@angular-devkit/build-ng-packagr": "~0.1000.8",
+    "@angular-devkit/build-angular": "~0.1000.2",
     "@angular/cli": "~10.0.2",
     "@angular/compiler-cli": "~10.0.3",
+    "@types/node": "^12.11.1",
     "@types/jasmine": "~3.5.0",
     "@types/jasminewd2": "~2.0.3",
-    "@types/node": "^12.11.1",
     "codelyzer": "^6.0.0",
     "jasmine-core": "~3.5.0",
     "jasmine-spec-reporter": "~5.0.0",
@@ -40,8 +39,6 @@
     "karma-coverage-istanbul-reporter": "~3.0.2",
     "karma-jasmine": "~3.3.0",
     "karma-jasmine-html-reporter": "^1.5.0",
-    "karma-opera-launcher": "^1.0.0",
-    "ng-packagr": "^10.0.0",
     "protractor": "~7.0.0",
     "ts-node": "~8.3.0",
     "tslint": "~6.1.0",

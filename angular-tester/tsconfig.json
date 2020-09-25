@@ -8,10 +8,13 @@
   "files": [],
   "references": [
     {
-      "path": "./projects/ng-rsocket-rxjs/tsconfig.lib.json"
+      "path": "./tsconfig.app.json"
     },
     {
-      "path": "./projects/ng-rsocket-rxjs/tsconfig.spec.json"
+      "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "./e2e/tsconfig.json"
     }
 ]
 }

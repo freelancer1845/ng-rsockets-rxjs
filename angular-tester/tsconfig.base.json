@@ -1,3 +1,4 @@
+/* To learn more about this file see: https://angular.io/config/tsconfig. */
 {
   "compileOnSave": false,
   "compilerOptions": {
@@ -9,17 +10,12 @@
     "experimentalDecorators": true,
     "moduleResolution": "node",
     "importHelpers": true,
+    "preserveSymlinks": true,
     "target": "es2015",
     "module": "es2020",
     "lib": [
       "es2018",
       "dom"
-    ],
-    "paths": {
-      "ng-rsocket-rxjs": [
-        "dist/ng-rsocket-rxjs/ng-rsocket-rxjs",
-        "dist/ng-rsocket-rxjs"
-      ]
-    }
+    ]
   }
 }
