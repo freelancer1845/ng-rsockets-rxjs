@@ -1,4 +1,5 @@
 import { Observable, Subject } from "rxjs";
+import { RSocketConfig } from '../core/config/rsocket-config';
 import { Payload } from '../core/protocol/payload';
 
 
@@ -22,6 +23,9 @@ export type RequestStreamHandler = (payload: Payload) => { stream: Observable<Pa
 export type RequestFNFHandler = (payload: Payload) => void;
 
 export interface RSocket {
+
+    establish(config: RSocketConfig): void;
+    close(): void;
 
     requestResponse(payload: Payload): Observable<Payload>;
     requestStream(payload: Payload): Observable<Payload>;

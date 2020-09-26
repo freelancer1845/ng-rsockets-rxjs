@@ -8,23 +8,23 @@ import { arrayBufferToUtf8String, stringToUtf8ArrayBuffer } from '../utlities/co
 
 const log = factory.getLogger('rsocket.MessageClient');
 
-interface TopicMapping {
-    topic: string;
+interface RouteMapping {
+    route: string;
 }
 
 
-export class RequestResponseMapping implements TopicMapping {
+export class RequestResponseMapping implements RouteMapping {
     constructor(
-        public readonly topic: string,
+        public readonly route: string,
         public readonly handler: (payload: any) => Observable<any> | any,
         public readonly incomingMimeType: MimeType = MimeTypes.APPLICATION_JSON,
         public readonly outgoingMimeType: MimeType = MimeTypes.APPLICATION_JSON,
     ) { }
 }
 
-export class RequestStreamMapping implements TopicMapping {
+export class RequestStreamMapping implements RouteMapping {
     constructor(
-        public readonly topic: string,
+        public readonly route: string,
         public readonly handler: (payload: any) => Observable<any> | any,
         public readonly incomingMimeType: MimeType = MimeTypes.APPLICATION_JSON,
         public readonly outgoingMimeType: MimeType = MimeTypes.APPLICATION_JSON,
@@ -40,39 +40,35 @@ export class MessageRoutingRSocket {
     private _requestStreamMappers: RequestStreamMapping[] = [];
 
 
-    constructor(private readonly rsocket: RSocket) {
+    constructor(public readonly rsocket: RSocket) {
         rsocket.setRequestResponseHandler(this._requestResponseHandler);
         rsocket.setRequestStreamHandler(this._requestStreamHandler);
     }
 
 
-    public requestResponse<T>(route: string, payload: any = {}, jsonSerialize = true, jsonDeserialize = true): Observable<T> {
+    public requestResponse<T>(
+        route: string,
+        payload: any = {},
+        outgoingMimeType: MimeType = MimeTypes.APPLICATION_JSON,
+        incomingMimeType: MimeType = MimeTypes.APPLICATION_JSON): Observable<T> {
         return defer(() => {
             const metaDataString = String.fromCharCode(route.length) + route;
-            let _payload: Payload;
-            if (jsonSerialize) {
-                _payload = new Payload(stringToUtf8ArrayBuffer(JSON.stringify(payload)), stringToUtf8ArrayBuffer(metaDataString));
-            } else {
-                _payload = new Payload(payload as unknown as ArrayBuffer, stringToUtf8ArrayBuffer(metaDataString));
-            }
+            const _payload = new Payload(outgoingMimeType.mapToBuffer(payload), stringToUtf8ArrayBuffer(metaDataString));
             return this.rsocket.requestResponse(_payload).pipe(map(ans => {
-                log.debug('Received request response answer');
-                log.debug(arrayBufferToUtf8String(ans.data));
-                if (jsonDeserialize) {
-                    return JSON.parse(arrayBufferToUtf8String(ans.data));
-                } else {
-                    return payload.data;
-                }
+                return incomingMimeType.mapFromBuffer(ans.data);
             }));
         });
     }
 
-    public requestStream<T>(route: string, payload: any = {}, payloadMimeType: MimeType = MimeTypes.APPLICATION_JSON, streamMimeType: MimeType = MimeTypes.APPLICATION_JSON): Observable<T> {
+    public requestStream<T>(
+        route: string, payload: any = {},
+        outgoingMimeType: MimeType = MimeTypes.APPLICATION_JSON,
+        incomingMimeType: MimeType = MimeTypes.APPLICATION_JSON): Observable<T> {
         return defer(() => {
             const metaDataString = String.fromCharCode(route.length) + route;
-            const _payload = new Payload(payloadMimeType.mapToBuffer(payload), stringToUtf8ArrayBuffer(metaDataString));
+            const _payload = new Payload(outgoingMimeType.mapToBuffer(payload), stringToUtf8ArrayBuffer(metaDataString));
             return this.rsocket.requestStream(_payload).pipe(map(ans => {
-                return streamMimeType.mapFromBuffer(ans.data);
+                return incomingMimeType.mapFromBuffer(ans.data);
             }));
         });
     }
@@ -100,7 +96,7 @@ export class MessageRoutingRSocket {
     private _requestResponseHandler: RequestResponseHandler = (payload: Payload) => {
         return defer(() => {
             const mapper = this.getMapping(this.getTopic(payload), this._requestResponseMappers);
-            log.debug("Executing Request Response Handler for: " + mapper.topic);
+            log.debug("Executing Request Response Handler for: " + mapper.route);
             const _payload = mapper.incomingMimeType.mapFromBuffer(payload.data);
 
             const result = mapper.handler(_payload);
@@ -135,7 +131,7 @@ export class MessageRoutingRSocket {
     private _requestStreamHandler: RequestStreamHandler = (payload: Payload) => {
         const mapper = this.getMapping(this.getTopic(payload), this._requestStreamMappers);
         const stream = defer(() => {
-            log.debug("Executing Request Stream Handler for: " + mapper.topic);
+            log.debug("Executing Request Stream Handler for: " + mapper.route);
             const _payload = mapper.incomingMimeType.mapFromBuffer(payload.data);
 
             const result = mapper.handler(_payload);
@@ -156,8 +152,8 @@ export class MessageRoutingRSocket {
     }
 
 
-    private addMapping(mapping: TopicMapping, target: TopicMapping[]) {
-        if (target.findIndex(m => m.topic == mapping.topic) == -1) {
+    private addMapping(mapping: RouteMapping, target: RouteMapping[]) {
+        if (target.findIndex(m => m.route == mapping.route) == -1) {
             target.push(mapping);
         } else {
             throw new Error(`Mapping for topic ${mapping} already registered`);
@@ -170,10 +166,10 @@ export class MessageRoutingRSocket {
         return arrayBufferToUtf8String(payload.metadata.slice(1, 1 + topicLength));
     }
 
-    private getMapping<T extends TopicMapping>(topic: string, target: T[]) {
-        const mapping = target.find(m => m.topic == topic);
+    private getMapping<T extends RouteMapping>(route: string, target: T[]) {
+        const mapping = target.find(m => m.route == route);
         if (mapping == undefined) {
-            throw Error(`No handler registered for ${topic}`)
+            throw Error(`No handler registered for ${route}`)
         }
         return mapping;
     }
