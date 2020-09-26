@@ -1,12 +1,12 @@
-import { BehaviorSubject, from, interval, merge, Observable, of, race, Subject, throwError, timer } from "rxjs";
-import { delay, dematerialize, filter, flatMap, materialize, repeatWhen, take, takeUntil, takeWhile, tap, timeout } from "rxjs/operators";
-import { RSocket, RSocketState } from '../api/rsocket.api';
+import { BehaviorSubject, interval, merge, noop, Notification, Observable, race, Subject, throwError } from "rxjs";
+import { buffer, bufferWhen, delayWhen, dematerialize, filter, flatMap, map, materialize, repeatWhen, skipWhile, take, takeUntil, takeWhile, tap, timeout } from "rxjs/operators";
+import { BackpressureStrategy, RequestFNFHandler, RequestResponseHandler, RequestStreamHandler, RSocket, RSocketState } from '../api/rsocket.api';
 import { logFrame } from '../utlities/debugging';
 import { factory } from "./config-log4j";
 import { RSocketConfig } from "./config/rsocket-config";
 import { FragmentContext } from './protocol/fragments';
-import { Frame, FrameType } from "./protocol/frame";
-import { createCancelFrame, createKeepaliveFrame, createRequestFNFFrame, createRequestResponseFrame, createRequestStreamFrame, createSetupFrame } from "./protocol/frame-factory";
+import { ErrorCode, Frame, FrameType } from "./protocol/frame";
+import { createCancelFrame, createErrorFrame, createKeepaliveFrame, createPayloadFrame, createRequestFNFFrame, createRequestResponseFrame, createRequestStreamFrame, createSetupFrame } from "./protocol/frame-factory";
 import { Payload } from "./protocol/payload";
 import { Transport } from "./transport/transport.api";
 
@@ -22,15 +22,24 @@ export class RSocketClient implements RSocket {
     private streamIdsHolder: number[] = [];
     private streamIdCounter = 0;
 
+    private _requestResponseHandler: RequestResponseHandler = p => throwError('No Request Response Handler Set');
+    private _requestStreamHandler: RequestStreamHandler = p => {
+        return { stream: throwError('No Request Stream Handler Set'), backpressureStrategy: BackpressureStrategy.BufferDelay };
+    };
+    private _requestFNFHandler: RequestFNFHandler = p => log.info('FNF Request received but no handler set');
+
     private $destroy = new Subject();
 
     constructor(private readonly transport: Transport) {
         this.incomingHandlerSetup();
     }
 
+
     public establish(config: RSocketConfig): void {
         this._config = config;
-        this.transport.incoming().subscribe({
+        this.transport.incoming().pipe(
+            takeUntil(this.$destroy)
+        ).subscribe({
             next: n => this._incoming.next(n),
             error: err => protocolLog.error("Websocket signaled error: " + JSON.stringify(err)),
             complete: () => protocolLog.debug("Websocket completed")
@@ -44,10 +53,28 @@ export class RSocketClient implements RSocket {
         this.setupKeepaliveSupport();
     }
 
+    public close(): void {
+        this.$destroy.next(true);
+    }
+
 
     private incomingHandlerSetup() {
-        this._incoming.subscribe(f => logFrame(f));
+        this._incoming.pipe(
+            filter(f => f.type() == FrameType.REQUEST_RESPONSE),
+            flatMap(f => this.incomingRequestResponse(f)),
+            takeUntil(this.$destroy)
+        ).subscribe(frame => this.transport.send(frame));
+        this._incoming.pipe(
+            filter(f => f.type() == FrameType.REQUEST_STREAM),
+            flatMap(f => this.incomingRequestStream(f)),
+            takeUntil(this.$destroy)
+        ).subscribe(frame => this.transport.send(frame));
+        this._incoming.pipe(
+            filter(f => f.type() == FrameType.REQUEST_FNF),
+            takeUntil(this.$destroy)
+        ).subscribe(f => this.incomingRequestFNF(f));
     }
+
 
     public requestResponse(payload: Payload): Observable<Payload> {
         const obs = new Observable<Payload>(emitter => {
@@ -177,6 +204,110 @@ export class RSocketClient implements RSocket {
         });
     }
 
+
+    private incomingRequestResponse(f: Frame): Observable<Frame> {
+        protocolLog.debug('Handling incoming Request Response request');
+        return this._requestResponseHandler(f.payload()).pipe(
+            takeUntil(this._incoming.pipe(
+                filter(incFrame => incFrame.streamId() == f.streamId()), // Further checks are not required as the requester may not send other frames but cancel
+                tap(n => protocolLog.debug("Request Response has been canceled by requester. StreamdId: " + n.streamId()))
+            )),
+            materialize(),
+            map(p => {
+                switch (p.kind) {
+                    case "N":
+                        return Notification.createNext(createPayloadFrame(f.streamId(), p.value, true));
+                    case "E":
+                        return Notification.createNext(createErrorFrame(f.streamId(), ErrorCode.APPLICATION_ERROR, p.error.message));
+                    case "C":
+                        return Notification.createComplete();
+                }
+            }),
+            dematerialize()
+        );
+    }
+
+    private incomingRequestStream(f: Frame): Observable<Frame> {
+        protocolLog.debug('Handling incoming Request Stream request');
+        const handler = this._requestStreamHandler(f.payload());
+        let requests = f.initialRequests();
+        let pending = [];
+        const backpressureHonorer = new Observable(emitter => {
+            if (requests > 0) {
+                emitter.next(requests);
+            } else {
+                pending.push(emitter);
+            }
+        });
+        const signalComplete = new Subject<number>();
+        const streamCanceler = this._incoming.pipe(
+            takeUntil(signalComplete),
+            filter(incFrame => incFrame.streamId() == f.streamId()),
+            filter(incFrame => incFrame.type() == FrameType.CANCEL),
+            tap(n => protocolLog.debug("Request Response has been canceled by requester. StreamdId: " + n.streamId())));
+
+        this._incoming.pipe(
+            takeUntil(streamCanceler),
+            filter(incFrame => incFrame.streamId() == f.streamId()),
+            filter(incFrame => incFrame.type() == FrameType.REQUEST_N),
+            map(incFrame => incFrame.requests())
+        ).subscribe(n => {
+            while (n > 0) {
+                const req = pending.shift();
+                if (req == null) {
+                    break;
+                }
+                req.next(0);
+                n--;
+            }
+            requests = n;
+        });
+        let backpressureHandler;
+        if (handler.backpressureStrategy == BackpressureStrategy.BufferDelay) {
+            backpressureHandler = delayWhen((v, id) => backpressureHonorer);
+        } else if (handler.backpressureStrategy == BackpressureStrategy.Drop) {
+            backpressureHandler = skipWhile(p => requests == 0);
+        } else {
+            backpressureHandler = map(a => a);
+        }
+
+        return handler.stream.pipe(
+            backpressureHandler,
+            takeUntil(streamCanceler),
+            materialize(),
+            map(p => {
+                switch (p.kind) {
+                    case "N":
+                        requests--;
+                        return Notification.createNext(createPayloadFrame(f.streamId(), p.value as Payload, false));
+                    case "E":
+                        signalComplete.next(0);
+                        this.transport.send(createErrorFrame(f.streamId(), ErrorCode.APPLICATION_ERROR, p.error.message));
+                        return Notification.createComplete();
+                    case "C":
+                        signalComplete.next(0);
+                        this.transport.send(createPayloadFrame(f.streamId(), null, true));
+                        return Notification.createComplete();
+                }
+            }),
+            dematerialize()
+        );
+    }
+    private incomingRequestFNF(f: Frame): void {
+        protocolLog.debug("Handling incoming FNF request");
+        this._requestFNFHandler(f.payload());
+    }
+
+    public setRequestResponseHandler(handler: RequestResponseHandler) {
+        this._requestResponseHandler = handler;
+    }
+    public setRequestStreamHandler(handler: RequestStreamHandler) {
+        this._requestStreamHandler = handler;
+    }
+    public setRequestFNFHandler(handler: RequestFNFHandler) {
+        this._requestFNFHandler = handler;
+    }
+
     private getNewStreamId(): number {
         const i = this.streamIdCounter;
         this.streamIdCounter++;
@@ -212,7 +343,9 @@ export class RSocketClient implements RSocket {
                     return true;
                 }
             }), take(1), timeout(this._config.maxLifetime)).subscribe({
-                next: n => emitter.complete(),
+                next: n => {
+                    emitter.complete();
+                },
                 error: error => emitter.error(error),
             });
             const keepaliveFrame = createKeepaliveFrame(true, this.transport.recvPosition(), new Payload(data));

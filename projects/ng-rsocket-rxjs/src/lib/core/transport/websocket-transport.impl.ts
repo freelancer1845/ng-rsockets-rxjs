@@ -1,7 +1,7 @@
 import { Transport } from "./transport.api";
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { Observable, Subject } from "rxjs";
-import { Frame } from "../protocol/frame";
+import { Frame, FrameType } from "../protocol/frame";
 import { map, tap } from 'rxjs/operators';
 import { logFrame } from '../../utlities/debugging';
 import { factory } from '../config-log4j';
@@ -14,6 +14,7 @@ export class WebsocketTransport implements Transport {
 
     private _sendPosition = 0;
     private _recvPosition = 0;
+    private _foreignRecvPosition = 0;
 
     private subject: WebSocketSubject<ArrayBuffer>;
 
@@ -43,19 +44,21 @@ export class WebsocketTransport implements Transport {
         });
     }
 
+
     public incoming(): Observable<Frame> {
 
-        return this.subject.pipe(tap({
-            next: data => {
-                log.debug("Recieved message")
-                this._recvPosition += data.byteLength;
-
+        return this.subject.pipe(map(data => {
+            const frame = new Frame(data);
+            logFrame(frame, false);
+            this._recvPosition += data.byteLength;
+            if (frame.type() == FrameType.KEEPALIVE) {
+                this._foreignRecvPosition = frame.lastReceivedPosition();
             }
-        }), map(data => new Frame(data)));
+            return frame;
+        }));
     }
     public send(frame: Frame): void {
-        log.debug(`Sending Frame`);
-        logFrame(frame);
+        logFrame(frame, true);
         this._sendPosition += frame.buffer.byteLength;
         this.subject.next(frame.buffer);
     }
@@ -65,6 +68,10 @@ export class WebsocketTransport implements Transport {
     }
     public recvPosition(): number {
         return this._recvPosition;
+    }
+
+    public foreignRecvPosition(): number {
+        return this._foreignRecvPosition;
     }
 
 }

@@ -4,8 +4,10 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.stereotype.Controller;
 
+import lombok.Data;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -52,5 +54,23 @@ public class TestController {
     @MessageMapping("/basic/request-fnf/check")
     public Mono<String> fnfCheck() {
         return Mono.just(this.fnfCommand);
+    }
+
+    @MessageMapping("/basic/request-reverse-response")
+    public Mono<String> reverseRequestResponse(Request request, RSocketRequester requester) {
+        return requester.route(request.topic).data("\"" + request.data + "\"").retrieveMono(String.class);
+    }
+
+    @MessageMapping("/basic/request-reverse-stream")
+    public Mono<Integer> reverseRequestStream(Request request, RSocketRequester requester) {
+        return requester.route(request.topic).data(request.data).retrieveFlux(Integer.class).limitRate(5).reduce(0, (a, v) -> {
+            return Integer.valueOf(a + v);
+        });
+    }
+
+    @Data
+    public static final class Request {
+        String topic;
+        String data;
     }
 }

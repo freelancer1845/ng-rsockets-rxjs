@@ -8,4 +8,5 @@ export interface Transport {
     send(frame: Frame): void;
     sendPosition(): number;
     recvPosition(): number;
+    foreignRecvPosition(): number;
 }

@@ -1,5 +1,6 @@
+import { stringToUtf8ArrayBuffer } from '../../utlities/conversions';
 import { RSocketConfig } from '../config/rsocket-config';
-import { Frame, FrameType } from "./frame";
+import { ErrorCode, Frame, FrameType } from "./frame";
 import { Payload } from "./payload";
 
 
@@ -78,6 +79,18 @@ function setPayload(buffer: ArrayBuffer, payload: Payload, offset: number) {
         position += payload.metadata.byteLength;
     }
     uint8View.set(new Uint8Array(payload.data), position);
+}
+
+function setComplete(view: DataView) {
+    view.setUint8(5, view.getUint8(5) | (1 << 6));
+}
+
+function setNext(view: DataView) {
+    view.setUint8(5, view.getUint8(5) | (1 << 5));
+}
+
+function setErrorCode(view: DataView, code: ErrorCode) {
+    view.setInt32(6, code);
 }
 
 export function createSetupFrame(config: RSocketConfig): Frame {
@@ -202,5 +215,42 @@ export function createRequestFNFFrame(streamId: number, data: Payload) {
     }
 
     setPayload(buffer, data, 6);
+    return new Frame(buffer);
+}
+
+export function createPayloadFrame(streamId: number, data: Payload | null, complete: boolean) {
+    let length = 6;
+    if (data != null) {
+        length += data.data.byteLength;
+        if (data.hasMetadata()) {
+            length += 3 + data.metadata.byteLength;
+        }
+    }
+    const buffer = new ArrayBuffer(length);
+    const view = new DataView(buffer);
+    setStreamId(view, streamId);
+    setFrameType(view, FrameType.PAYLOAD);
+    if (length > 6) {
+        setNext(view);
+        if (data.hasMetadata()) {
+            setMetaDataPresent(view);
+        }
+        setPayload(buffer, data, 6);
+    }
+    if (complete) {
+        setComplete(view)
+    }
+    return new Frame(buffer);
+}
+
+export function createErrorFrame(streamId: number, code: ErrorCode, message: string) {
+    var messageBuffer = stringToUtf8ArrayBuffer(message);
+    let length = 6 + 4 + messageBuffer.byteLength;
+    const buffer = new ArrayBuffer(length);
+    const view = new DataView(buffer);
+    setStreamId(view, streamId);
+    setFrameType(view, FrameType.ERROR);
+    setErrorCode(view, code);
+    new Uint8Array(buffer).set(new Uint8Array(messageBuffer), 10);
     return new Frame(buffer);
 }
