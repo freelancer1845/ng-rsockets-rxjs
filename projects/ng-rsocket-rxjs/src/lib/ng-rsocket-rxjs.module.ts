@@ -7,7 +7,7 @@ export interface RSocketRxjsModuleConfig {
    * Either provide a full RSocketConfiguration or just provide an url which should work nicely with spring boot RSocket (in websocket mode)
    */
   url: string;
-  rsocketConfig: Partial<RSocketConfig>;
+  rsocketConfig?: Partial<RSocketConfig>;
   reconnectTimeout?: number;
 }
 

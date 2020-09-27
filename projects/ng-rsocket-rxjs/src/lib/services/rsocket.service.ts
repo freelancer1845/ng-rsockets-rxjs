@@ -26,25 +26,28 @@ export class RSocketService implements OnDestroy {
 
   constructor(options: RSocketServiceOptions) {
     let builder = new RSocketBuilder();
-    const config = options.config;
-    if (config.dataMimeType != undefined) {
-      builder = builder.dataMimeTypeDirect(config.dataMimeType);
-    }
-    if (config.metadataMimeType != undefined) {
-      builder = builder.metaDatamimeTypeDirect(config.metadataMimeType);
-    }
-    if (config.maxLifetime != undefined) {
-      builder = builder.maxLifetime(config.maxLifetime);
-    }
-    if (config.keepaliveTime != undefined) {
-      builder = builder.keepaliveTime(config.keepaliveTime);
-    }
-    if (config.resumeIdentificationToken) {
-      builder = builder.resumeIdentificationToken(config.resumeIdentificationToken);
-    }
-    if (config.honorsLease) {
-      if (config.honorsLease == true) {
-        builder = builder.honorsLease();
+    if (options.config != undefined) {
+      const config = options.config;
+
+      if (config.dataMimeType != undefined) {
+        builder = builder.dataMimeTypeDirect(config.dataMimeType);
+      }
+      if (config.metadataMimeType != undefined) {
+        builder = builder.metaDatamimeTypeDirect(config.metadataMimeType);
+      }
+      if (config.maxLifetime != undefined) {
+        builder = builder.maxLifetime(config.maxLifetime);
+      }
+      if (config.keepaliveTime != undefined) {
+        builder = builder.keepaliveTime(config.keepaliveTime);
+      }
+      if (config.resumeIdentificationToken) {
+        builder = builder.resumeIdentificationToken(config.resumeIdentificationToken);
+      }
+      if (config.honorsLease) {
+        if (config.honorsLease == true) {
+          builder = builder.honorsLease();
+        }
       }
     }
     if (options.reconnectTimeout !== undefined) {
