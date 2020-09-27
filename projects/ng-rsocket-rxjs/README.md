@@ -39,13 +39,23 @@ Basic library implementing RSockets RC 1 (Version 1.0).
 
 ### Import module using forRoot()
 
-´´´ts
+```typescript
 RSocketRxjsModule.forRoot({
-        url: "ws://localhost:8080/rsocket",
+        url: "ws://<host>:8080/<endpoint>",
         rsocketConfig: {
-          keepaliveTime: 30000,
-          maxLifetime: 100000,
         },
         reconnectTimeout: 5000
       })]
-´´´
+```
+
+Now simply have **RSocketService** injected and us the fluent api to construct calls.
+
+```typescript
+service.route(<route>).data(<data>).requestStream().subscribe(ans => {
+      // handle answer
+    });
+service.route(<route>).data(<data>).requestResponse().subscribe(ans => {
+      // handle answer
+    });
+service.route(<route>).data(<data>).fireAndForget();
+```
