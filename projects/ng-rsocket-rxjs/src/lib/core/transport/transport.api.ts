@@ -9,4 +9,5 @@ export interface Transport {
     sendPosition(): number;
     recvPosition(): number;
     foreignRecvPosition(): number;
+    close(): void;
 }

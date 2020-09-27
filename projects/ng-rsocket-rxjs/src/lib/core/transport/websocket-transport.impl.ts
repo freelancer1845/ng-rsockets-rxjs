@@ -43,6 +43,11 @@ export class WebsocketTransport implements Transport {
             }
         });
     }
+    close(): void {
+        if (this.subject !== undefined) {
+            this.subject.complete();
+        }
+    }
 
 
     public incoming(): Observable<Frame> {

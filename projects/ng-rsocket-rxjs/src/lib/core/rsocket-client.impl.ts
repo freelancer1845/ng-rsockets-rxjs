@@ -68,6 +68,7 @@ export class RSocketClient implements RSocket {
     public close(): void {
         this._closedByUser = true;
         this.$destroy.next(true);
+        this.transport.close();
     }
 
 

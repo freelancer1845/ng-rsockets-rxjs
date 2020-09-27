@@ -1,5 +1,6 @@
-import { Injectable } from '@angular/core';
-import { ReplaySubject } from 'rxjs';
+import { Injectable, OnDestroy } from '@angular/core';
+import { ReplaySubject, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { RSocketBuilder } from '../api/rsocket-factory';
 import { factory } from '../core/config-log4j';
 import { RSocketConfig } from '../core/config/rsocket-config';
@@ -19,8 +20,8 @@ export class RSocketServiceOptions {
 @Injectable({
   providedIn: 'root'
 })
-export class RSocketService {
-
+export class RSocketService implements OnDestroy {
+  private $destroy = new Subject();
   private _socket: ReplaySubject<MessageRoutingRSocket> = new ReplaySubject(1);
 
   constructor(options: RSocketServiceOptions) {
@@ -51,12 +52,14 @@ export class RSocketService {
     } else {
       builder = builder.automaticReconnect();
     }
-    builder.connectionString(options.url).messageRSocket().subscribe((socket) => {
+    builder.connectionString(options.url).messageRSocket().pipe(takeUntil(this.$destroy)).subscribe((socket) => {
       log.debug('Successfully opened socket');
       this._socket.next(socket);
     });
   }
-
+  ngOnDestroy(): void {
+    this.$destroy.next(1);
+  }
 
   public route(route: string): FluentRequest {
     return new FluentRequest(this._socket, route);
