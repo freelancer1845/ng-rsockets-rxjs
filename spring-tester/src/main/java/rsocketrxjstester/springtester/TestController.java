@@ -63,9 +63,15 @@ public class TestController {
 
     @MessageMapping("/basic/request-reverse-stream")
     public Mono<Integer> reverseRequestStream(Request request, RSocketRequester requester) {
-        return requester.route(request.topic).data(request.data).retrieveFlux(Integer.class).limitRate(5).reduce(0, (a, v) -> {
-            return Integer.valueOf(a + v);
-        });
+        return requester.route(request.topic).data(request.data).retrieveFlux(Integer.class).limitRate(5).reduce(0,
+                (a, v) -> {
+                    return Integer.valueOf(a + v);
+                });
+    }
+
+    @MessageMapping("/basic/disconnect")
+    public void requestDisconnect(RSocketRequester requester) {
+        requester.rsocket().dispose();
     }
 
     @Data

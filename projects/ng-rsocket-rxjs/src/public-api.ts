@@ -2,6 +2,8 @@
  * Public API Surface of ng-rsocket-rxjs
  */
 
+export { RSocketService } from './lib/services/rsocket.service';
+
 export { MimeTypes } from './lib/api/rsocket-mime.types';
 
 export { MessageRoutingRSocket } from './lib/messages/message-routing-rsocket';

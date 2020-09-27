@@ -16,12 +16,12 @@ export class FragmentContext {
      */
     public get(): Payload {
         if (this.fragments.length == 1) {
-            log.debug("Returning Single Fragment Payload");
+            log.trace("Returning Single Fragment Payload");
             const payload = this.fragments[0];
             this.fragments = [];
             return payload;
         } else {
-            log.debug("Returning Multi Fragment Payload");
+            log.trace("Returning Multi Fragment Payload");
             let metdataLength = 0;
             let dataLength = 0;
             for (let fragment of this.fragments) {

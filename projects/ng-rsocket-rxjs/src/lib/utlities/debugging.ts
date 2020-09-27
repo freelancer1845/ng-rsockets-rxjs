@@ -58,5 +58,5 @@ export function frameToString(frame: Frame, fromClient: boolean): string {
 }
 
 export function logFrame(frame: Frame, fromClient: boolean) {
-    log.debug(() => frameToString(frame, fromClient));
+    log.debug(frameToString(frame, fromClient));
 }

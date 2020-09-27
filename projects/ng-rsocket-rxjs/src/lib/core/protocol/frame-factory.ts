@@ -93,6 +93,10 @@ function setErrorCode(view: DataView, code: ErrorCode) {
     view.setInt32(6, code);
 }
 
+function setRequests(view: DataView, requests: number) {
+    setInitialRequests(view, requests);
+}
+
 export function createSetupFrame(config: RSocketConfig): Frame {
 
     let length = 18; // up until resume token
@@ -252,5 +256,15 @@ export function createErrorFrame(streamId: number, code: ErrorCode, message: str
     setFrameType(view, FrameType.ERROR);
     setErrorCode(view, code);
     new Uint8Array(buffer).set(new Uint8Array(messageBuffer), 10);
+    return new Frame(buffer);
+}
+
+export function createRequestNFrame(streamId: number, requests: number) {
+    const buffer = new ArrayBuffer(10);
+    const view = new DataView(buffer);
+
+    setStreamId(view, streamId);
+    setFrameType(view, FrameType.REQUEST_N);
+    setInitialRequests(view, requests);
     return new Frame(buffer);
 }

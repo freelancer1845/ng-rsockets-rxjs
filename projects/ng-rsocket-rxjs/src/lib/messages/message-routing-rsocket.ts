@@ -63,11 +63,18 @@ export class MessageRoutingRSocket {
     public requestStream<T>(
         route: string, payload: any = {},
         outgoingMimeType: MimeType = MimeTypes.APPLICATION_JSON,
-        incomingMimeType: MimeType = MimeTypes.APPLICATION_JSON): Observable<T> {
+        incomingMimeType: MimeType = MimeTypes.APPLICATION_JSON,
+        requester?: Observable<number>): Observable<T> {
+        if (outgoingMimeType == null) {
+            outgoingMimeType = MimeTypes.APPLICATION_OCTET_STREAM;
+        }
+        if (incomingMimeType == null) {
+            incomingMimeType = MimeTypes.APPLICATION_OCTET_STREAM;
+        }
         return defer(() => {
             const metaDataString = String.fromCharCode(route.length) + route;
             const _payload = new Payload(outgoingMimeType.mapToBuffer(payload), stringToUtf8ArrayBuffer(metaDataString));
-            return this.rsocket.requestStream(_payload).pipe(map(ans => {
+            return this.rsocket.requestStream(_payload, requester).pipe(map(ans => {
                 return incomingMimeType.mapFromBuffer(ans.data);
             }));
         });

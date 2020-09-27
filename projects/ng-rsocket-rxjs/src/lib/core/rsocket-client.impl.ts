@@ -1,12 +1,11 @@
-import { BehaviorSubject, interval, merge, noop, Notification, Observable, race, Subject, throwError } from "rxjs";
-import { buffer, bufferWhen, delayWhen, dematerialize, filter, flatMap, map, materialize, repeatWhen, skipWhile, take, takeUntil, takeWhile, tap, timeout } from "rxjs/operators";
+import { BehaviorSubject, interval, merge, Notification, Observable, race, Subject, throwError } from "rxjs";
+import { delayWhen, dematerialize, filter, flatMap, map, materialize, repeatWhen, skipWhile, take, takeUntil, takeWhile, tap, timeout } from "rxjs/operators";
 import { BackpressureStrategy, RequestFNFHandler, RequestResponseHandler, RequestStreamHandler, RSocket, RSocketState } from '../api/rsocket.api';
-import { logFrame } from '../utlities/debugging';
 import { factory } from "./config-log4j";
 import { RSocketConfig } from "./config/rsocket-config";
 import { FragmentContext } from './protocol/fragments';
 import { ErrorCode, Frame, FrameType } from "./protocol/frame";
-import { createCancelFrame, createErrorFrame, createKeepaliveFrame, createPayloadFrame, createRequestFNFFrame, createRequestResponseFrame, createRequestStreamFrame, createSetupFrame } from "./protocol/frame-factory";
+import { createCancelFrame, createErrorFrame, createKeepaliveFrame, createPayloadFrame, createRequestFNFFrame, createRequestNFrame, createRequestResponseFrame, createRequestStreamFrame, createSetupFrame } from "./protocol/frame-factory";
 import { Payload } from "./protocol/payload";
 import { Transport } from "./transport/transport.api";
 
@@ -29,9 +28,12 @@ export class RSocketClient implements RSocket {
     private _requestFNFHandler: RequestFNFHandler = p => log.info('FNF Request received but no handler set');
 
     private $destroy = new Subject();
-
+    private _closedByUser = false;
     constructor(private readonly transport: Transport) {
         this.incomingHandlerSetup();
+    }
+    state(): Observable<RSocketState> {
+        return this._state;
     }
 
 
@@ -41,8 +43,18 @@ export class RSocketClient implements RSocket {
             takeUntil(this.$destroy)
         ).subscribe({
             next: n => this._incoming.next(n),
-            error: err => protocolLog.error("Websocket signaled error: " + JSON.stringify(err)),
-            complete: () => protocolLog.debug("Websocket completed")
+            error: err => {
+                protocolLog.error("Websocket signaled error: " + JSON.stringify(err));
+                this._state.next(RSocketState.Error);
+                this._state.next(RSocketState.Disconnected);
+            },
+            complete: () => {
+                protocolLog.debug("Websocket completed");
+                if (this._closedByUser == false) {
+                    this._state.next(RSocketState.Error);
+                }
+                this._state.next(RSocketState.Disconnected);
+            }
         });
         const setupFrame = createSetupFrame(config);
         if (config.honorsLease == false) {
@@ -54,6 +66,7 @@ export class RSocketClient implements RSocket {
     }
 
     public close(): void {
+        this._closedByUser = true;
         this.$destroy.next(true);
     }
 
@@ -78,7 +91,7 @@ export class RSocketClient implements RSocket {
 
     public requestResponse(payload: Payload): Observable<Payload> {
         const obs = new Observable<Payload>(emitter => {
-            protocolLog.debug(() => "Executing Request Response");
+            protocolLog.debug("Executing Request Response");
             const streamId = this.getNewStreamId();
             const fragmentsContext = new FragmentContext();
             const subscription = this._incoming.pipe(
@@ -134,14 +147,16 @@ export class RSocketClient implements RSocket {
             flatMap(s => race(obs, this.connectionFailedObservable())));
     }
 
-    public requestStream(payload: Payload): Observable<Payload> {
+    public requestStream(payload: Payload, requester?: Observable<number>): Observable<Payload> {
         const obs = new Observable<Payload>(emitter => {
-            protocolLog.debug(() => "Executing Request Stream");
+            protocolLog.debug("Executing Request Stream");
             const streamId = this.getNewStreamId();
-            // const fragmentsContext: Payload[] = [];
             const fragmentsContext = new FragmentContext();
+            const $requestDestroy = new Subject<number>();
             const subscription = this._incoming.pipe(
+                takeUntil($requestDestroy),
                 filter(f => f.streamId() == streamId),
+
             ).subscribe(f => {
                 if (f.type() == FrameType.PAYLOAD) {
                     if (f.isNext()) {
@@ -162,27 +177,36 @@ export class RSocketClient implements RSocket {
                             message = String.fromCharCode.apply(null, new Uint8Array(messagePayload.data) as unknown as number[]);
                         }
                     }
-                    subscription.unsubscribe();
+                    $requestDestroy.next(0);
                     emitter.error(new Error(`Error: ${f.errorCode()}. Message: ${message}`))
                 } else {
-                    subscription.unsubscribe();
+                    $requestDestroy.next(0);
                     emitter.error(new Error('Unexpected frame type in request response interaction: ' + f.type()));
                 }
 
             }, error => {
+                $requestDestroy.next(0);
                 emitter.error(new Error('Unexpected error form transport. ' + error.message));
-                subscription.unsubscribe();
             }, () => {
+                $requestDestroy.next(0);
                 emitter.complete();
-                subscription.unsubscribe();
             });
-
-            this.transport.send(createRequestStreamFrame(streamId, payload, 2 ** 31 - 1));
+            if (requester === undefined) {
+                this.transport.send(createRequestStreamFrame(streamId, payload, 2 ** 31 - 1));
+            } else {
+                let initialRequest = true;
+                requester.pipe(takeUntil($requestDestroy)).subscribe(requests => {
+                    if (initialRequest == true) {
+                        initialRequest = false;
+                        this.transport.send(createRequestStreamFrame(streamId, payload, requests));
+                    } else {
+                        this.transport.send(createRequestNFrame(streamId, requests));
+                    }
+                });
+            }
             return () => {
-                if (subscription.closed == false) {
-                    subscription.unsubscribe();
-                    this.transport.send(createCancelFrame(streamId));
-                }
+                $requestDestroy.next(0);
+                this.transport.send(createCancelFrame(streamId));
             }
         });
 
@@ -198,7 +222,7 @@ export class RSocketClient implements RSocket {
     public requestFNF(payload: Payload): void {
 
         this._state.pipe(filter(s => s == RSocketState.Connected), take(1)).subscribe(s => {
-            protocolLog.debug(() => "Executing Request FNF");
+            protocolLog.debug("Executing Request FNF");
             const streamId = this.getNewStreamId();
             this.transport.send(createRequestFNFFrame(streamId, payload));
         });
@@ -322,7 +346,6 @@ export class RSocketClient implements RSocket {
 
     private setupKeepaliveSupport(): void {
         new Observable(emitter => {
-            console.log("Sending Keepalive")
             const data = new Uint8Array(20);
             for (let i = 0; i < 20; i++) {
                 data[i] = Math.floor(Math.random() * 100);

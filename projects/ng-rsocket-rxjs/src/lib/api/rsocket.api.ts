@@ -26,9 +26,11 @@ export interface RSocket {
 
     establish(config: RSocketConfig): void;
     close(): void;
+    state(): Observable<RSocketState>;
 
     requestResponse(payload: Payload): Observable<Payload>;
     requestStream(payload: Payload): Observable<Payload>;
+    requestStream(payload: Payload, requester?: Observable<number>): Observable<Payload>;
     requestFNF(payload: Payload): void;
     setRequestResponseHandler(handler: RequestResponseHandler);
     setRequestStreamHandler(handler: RequestStreamHandler);
