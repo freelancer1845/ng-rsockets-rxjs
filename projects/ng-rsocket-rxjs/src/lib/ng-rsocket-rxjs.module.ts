@@ -24,9 +24,7 @@ export class RSocketRxjsModule {
       providers: [
         {
           provide: RSocketServiceOptions,
-          useFactory: () => {
-            return new RSocketServiceOptions(config.rsocketConfig, config.url, config.reconnectTimeout);
-          }
+          useValue: new RSocketServiceOptions(config.rsocketConfig, config.url, config.reconnectTimeout)
         }
       ]
     }
