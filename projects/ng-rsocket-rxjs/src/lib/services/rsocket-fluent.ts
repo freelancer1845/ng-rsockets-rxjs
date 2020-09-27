@@ -22,14 +22,17 @@ export class FluentRequest {
 
     public requestMimetype(type: MimeType) {
         this._outgoingMimeType = type;
+        return this;
     }
-
+    
     public answerMimetype(type: MimeType) {
         this._incomingMimeType = type;
+        return this;
     }
-
+    
     public requester(requester: Observable<number>) {
         this._requester = requester;
+        return this;
     }
 
     public requestResponse(): Observable<any> {
