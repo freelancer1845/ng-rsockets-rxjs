@@ -23,5 +23,6 @@
     "type": "git",
     "url": "https://github.com/freelancer1845/ng-rsockets-rxjs"
   },
-  "homepage": "https://github.com/freelancer1845/ng-rsockets-rxjs"
+  "homepage": "https://github.com/freelancer1845/ng-rsockets-rxjs",
+  "license": "Apache 2.0"
 }
