@@ -1,24 +1,51 @@
 # NgRsocketRxjs
 
-This library was generated with [Angular CLI](https://github.com/angular/angular-cli) version 10.0.14.
+Basic library implementing RSockets RC 1 (Version 1.0).
 
-## Code scaffolding
+## What this is:
 
-Run `ng generate component component-name --project ng-rsocket-rxjs` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module --project ng-rsocket-rxjs`.
-> Note: Don't forget to add `--project ng-rsocket-rxjs` or else it will be added to the default project in your `angular.json` file. 
+### This library provides a basic RSocket client implementing the following features:
 
-## Build
+* Request FNF - Both directions
+* Request Response - Both directions
+* Request Stream - Both direction + Backpressure support
+* Websocket Transport
 
-Run `ng build ng-rsocket-rxjs` to build the project. The build artifacts will be stored in the `dist/` directory.
+### Additional features
 
-## Publishing
+* MimeTypes:
+  * application/json using JSON.stringify/parse
+  * application/octet-stream giving and using raw ArrayBuffers
+  * 'MESSAGE_X_RSOCKET_ROUTING' to  work with spring-boot rsocket MessageMapping etc.
+* Automatic reconnect when using RSocketBuilder
+* A service that can be used in your Angular Project to ease establishing of the connection (works well with Spring Boot RSocket)
 
-After building your library with `ng build ng-rsocket-rxjs`, go to the dist folder `cd dist/ng-rsocket-rxjs` and run `npm publish`.
 
-## Running unit tests
+## What this isn't:
 
-Run `ng test ng-rsocket-rxjs` to execute the unit tests via [Karma](https://karma-runner.github.io).
+* A full implementation of the RSocket Spec. Missing:
+  * Lease Handling
+  * Server Setup
+  * Resume Support
+  * Request Channel
+  * Metadata Push
+  * Most MimeTypes
+* A library that can be used in any javascript project
+  * In Theory the code is split up into Angular dependent code and raw Typescript code. Sadly I have no experience in writing JS/TS libraries and have no idea how to setup the build system correctly...
+* The library is also not deeply tested, but works well for my projects (which is always a Spring Boot - Angular Stack)
 
-## Further help
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+## How to use in Angular
+
+### Import module using forRoot()
+
+´´´ts
+RSocketRxjsModule.forRoot({
+        url: "ws://localhost:8080/rsocket",
+        rsocketConfig: {
+          keepaliveTime: 30000,
+          maxLifetime: 100000,
+        },
+        reconnectTimeout: 5000
+      })]
+´´´

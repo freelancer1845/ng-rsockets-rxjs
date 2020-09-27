@@ -10,5 +10,18 @@
   },
   "devDependencies": {
     "karma-opera-launcher": "^1.0.0"
-  }
+  },
+  "keywords": [
+    "angular",
+    "rsocket"
+  ],
+  "author": {
+    "name": "Jascha Riedel",
+    "email": "jaschelite@googlemail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/freelancer1845/ng-rsockets-rxjs"
+  },
+  "homepage": "https://github.com/freelancer1845/ng-rsockets-rxjs"
 }
