@@ -45,7 +45,7 @@ RSocketRxjsModule.forRoot({
         rsocketConfig: {
         },
         reconnectTimeout: 5000
-      })]
+      })
 ```
 
 Now simply have **RSocketService** injected and us the fluent api to construct calls.
