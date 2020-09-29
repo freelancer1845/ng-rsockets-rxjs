@@ -1,17 +1,11 @@
 
 
 export function stringToUtf8ArrayBuffer(_string: string) {
-
-    var buf = new ArrayBuffer(_string.length);
-    var bufView = new Uint8Array(buf);
-    for (var i = 0, strLen = _string.length; i < strLen; i++) {
-        bufView[i] = _string.charCodeAt(i);
-    }
-    return buf;
+    return new TextEncoder().encode(_string);
 }
 
 export function arrayBufferToUtf8String(buffer: ArrayBuffer) {
-    return String.fromCharCode.apply(null, new Uint8Array(buffer));
+    return new TextDecoder('utf-8').decode(buffer);
 }
 
 export function getUint64(view: DataView, byteOffset, littleEndian = false) {
