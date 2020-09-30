@@ -106,6 +106,104 @@ describe("request_patterns", () => {
             range(0, 42).pipe(reduce((a, b) => a + b, 0)).subscribe(result => expect(ans).toEqual(result), null, () => done());
         })
     });
+    it("Authenticates using simple authentication on request-response", done => {
+        socket.requestResponse('/secure/request-response',
+            'DoSthUnallowed',
+            undefined,
+            undefined,
+            {
+                type: 'simple',
+                username: 'user',
+                password: 'pass'
+            }
+        ).subscribe(ans => {
+            expect(ans).toEqual('DoSthUnallowed');
+            done();
+        });
+    });
+    it("Authenticates using simple authentication on request-stream", done => {
+        socket.requestStream('/secure/request-stream',
+            'DoSthUnallowed',
+            undefined,
+            undefined,
+            {
+                type: 'simple',
+                username: 'user',
+                password: 'pass'
+            }
+        ).subscribe(ans => {
+            expect(ans).toEqual('DoSthUnallowed');
+            done();
+        });
+    });
+    it("Authenticates using fire and forget", done => {
+        const number = Math.random();
+        socket.requestFNF('/secure/fnf', number, undefined, {
+            type: 'simple',
+            username: 'user',
+            password: 'pass'
+        });
+        timer(200).pipe(flatMap(t => {
+            return socket.requestResponse('/secure/fnf/verify', undefined, undefined, undefined, {
+                type: 'simple',
+                username: 'user',
+                password: 'pass'
+            });
+        }))
+            .subscribe(ans => {
+                expect(Number(ans)).toEqual(number);
+                done();
+            })
+    })
+    it("Fails  unauthenticated", done => {
+        socket.requestResponse('/secure/request-response',
+            'DoSthUnallowed',
+            undefined,
+            undefined,
+        ).subscribe(ans => {
+            expect(ans).toBe("Error: 513. Message: Access Denied");
+            done();
+        }, err => {
+            expect(err.message).toMatch(/^Error: 513.+$/);
+            done();
+        });
+    });
+    it("Fails with wrong credentials", done => {
+        socket.requestResponse('/secure/request-response',
+            'DoSthUnallowed',
+            undefined,
+            undefined,
+            {
+                type: 'simple',
+                username: 'user',
+                password: 'passgweg'
+            }
+        ).subscribe(ans => {
+            expect(ans).toBe("Error: 513. Message: Access Denied");
+            done();
+        }, err => {
+            expect(err.message).toMatch(/^Error: 513.+$/);
+            done();
+        });
+    });
+    it("Fails with unallowed role", done => {
+        socket.requestResponse('/secure/request-response',
+            'DoSthUnallowed',
+            undefined,
+            undefined,
+            {
+                type: 'simple',
+                username: 'test',
+                password: 'pass'
+            }
+        ).subscribe(ans => {
+            expect(ans).toBe("Error: 513. Message: Access Denied");
+            done();
+        }, err => {
+            expect(err.message).toMatch(/^Error: 513.+$/);
+            done();
+        });
+    });
     afterAll(() => {
         socket.rsocket.close();
     })

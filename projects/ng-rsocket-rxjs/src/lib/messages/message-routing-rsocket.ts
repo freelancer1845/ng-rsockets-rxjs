@@ -57,6 +57,9 @@ export class MessageRoutingRSocket {
 
             const _payload = new Payload(outgoingMimeType.mapToBuffer(payload), MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.mapToBuffer(metaData));
             return this.rsocket.requestResponse(_payload).pipe(map(ans => {
+                if (ans.hasMetadata()) {
+                    const composite = MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.mapFromBuffer(ans.metadata);
+                }
                 return incomingMimeType.mapFromBuffer(ans.data);
             }));
         });

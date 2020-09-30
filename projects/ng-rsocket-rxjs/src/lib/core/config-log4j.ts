@@ -116,5 +116,5 @@ export class LogFactory {
 export const factory = new LogFactory();
 
 
-factory.setLevel(LogLevel.Trace, /^\.protocol/);
-factory.setLevel(LogLevel.Trace, /.*/);
+factory.setLevel(LogLevel.Error, /^\.protocol/);
+factory.setLevel(LogLevel.Error, /.*/);

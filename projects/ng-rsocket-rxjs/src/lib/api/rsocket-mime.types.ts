@@ -107,10 +107,8 @@ function deserializeCompositeMetadata(buffer: ArrayBuffer): CompositeMetaData[] 
             type: type,
             data: type.mapFromBuffer(buffer.slice(idx, idx + payloadLength))
         });
-        console.log(metadataPayloads);
         idx += payloadLength;
     }
-    console.log(metadataPayloads);
     return metadataPayloads;
 }
 
@@ -148,7 +146,6 @@ function serializeCompositeMetadata(data: CompositeMetaData[]) {
         }
     }
     const buffer = new ArrayBuffer(requiredBufferSize);
-    console.log(requiredBufferSize);
     const view = new DataView(buffer);
     const uint8View = new Uint8Array(buffer);
     let idx = 0;
@@ -164,7 +161,6 @@ function serializeCompositeMetadata(data: CompositeMetaData[]) {
         view.setUint8(idx++, part.data.byteLength >> 8);
         view.setUint8(idx++, part.data.byteLength);
         uint8View.set(new Uint8Array(part.data), idx);
-        console.log(buffer)
         idx += part.data.byteLength;
     }
 
@@ -215,7 +211,8 @@ function serializeAuthentication(authentication: Authentication): ArrayBuffer {
         length++;
         usernameBuffer = stringToUtf8ArrayBuffer(authentication.username);
         passwordBuffer = stringToUtf8ArrayBuffer(authentication.password);
-        length += 2;
+        // length += 2; // TODO : Replace when spring updates rsocket security. Current spec requires 16bit
+        length += 1;
         length += usernameBuffer.byteLength;
         length += passwordBuffer.byteLength;
     } else if (authentication.type == "bearer") {
@@ -235,8 +232,9 @@ function serializeAuthentication(authentication: Authentication): ArrayBuffer {
     if (authentication.type == "simple") {
         view.setUint8(idx++, (1 << 7) | 0x00);
         length++;
-        view.setUint16(idx, usernameBuffer.byteLength);
-        idx += 2;
+        view.setUint8(idx++, usernameBuffer.byteLength); // TODO : Replace when spring updates rsocket security. Current spec requires 16bit
+        // view.setUint16(idx, usernameBuffer.byteLength);
+        // idx += 2;
         uint8View.set(new Uint8Array(usernameBuffer), idx);
         idx += usernameBuffer.byteLength;
         uint8View.set(new Uint8Array(passwordBuffer), idx);

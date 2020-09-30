@@ -35,6 +35,10 @@ export class FluentRequest<O, I> {
         return new FluentRequest(this.socketHolder, this._route, this._data, this._outgoingMimeType, type, this._authentication, this._requester);
     }
 
+    public authentication(auth: Authentication): FluentRequest<O, I> {
+        return new FluentRequest(this.socketHolder, this._route, this._data, this._outgoingMimeType, this._incomingMimeType, auth, this._requester);
+    }
+
     public requester(requester: Observable<number>) {
         this._requester = requester;
         return this.copy();

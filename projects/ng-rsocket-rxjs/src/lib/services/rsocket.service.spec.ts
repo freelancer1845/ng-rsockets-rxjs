@@ -48,4 +48,24 @@ describe('RSocketService', () => {
       done();
     });
   });
+  it('Uses authentication on request-response', done => {
+    service.route('/secure/request-response').data('ServiceTest').authentication({
+      type: "simple",
+      username: "user",
+      password: "pass"
+    }).requestResponse().subscribe(ans => {
+      expect(ans).toEqual('ServiceTest');
+      done();
+    })
+  });
+  it('Uses authentication on request-stream', done => {
+    service.route('/secure/request-stream').data('ServiceTest').authentication({
+      type: "simple",
+      username: "user",
+      password: "pass"
+    }).requestStream().subscribe(ans => {
+      expect(ans).toEqual('ServiceTest');
+      done();
+    })
+  });
 });
