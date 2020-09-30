@@ -6,6 +6,7 @@ import { WebsocketTransport } from "ng-rsocket-rxjs"
 import { MimeTypes } from "ng-rsocket-rxjs";
 import { BehaviorSubject, range, ReplaySubject, Subject, timer } from "rxjs";
 import { flatMap, reduce } from 'rxjs/operators';
+import { arrayBufferToUtf8String } from '../utlities/conversions';
 
 
 
@@ -19,7 +20,7 @@ describe("request_patterns", () => {
         socket = new MessageRoutingRSocket(client);
         client.establish({
             dataMimeType: MimeTypes.APPLICATION_JSON.toBuffer(),
-            metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_ROUTING.toBuffer(),
+            metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer(),
             honorsLease: false,
             keepaliveTime: 30000,
             majorVersion: 1,
@@ -53,7 +54,7 @@ describe("request_patterns", () => {
     it("Respects Backpressure Requester", done => {
         let counter = 0;
         const requester = new BehaviorSubject<number>(1);
-        socket.requestStream('/basic/request-stream', 42, undefined, undefined, requester).subscribe(ans => {
+        socket.requestStream('/basic/request-stream', 42, undefined, undefined, undefined, requester).subscribe(ans => {
             expect(ans).toEqual(counter++);
             requester.next(1);
         }, err => { }, () => {
@@ -105,7 +106,6 @@ describe("request_patterns", () => {
             range(0, 42).pipe(reduce((a, b) => a + b, 0)).subscribe(result => expect(ans).toEqual(result), null, () => done());
         })
     });
-
     afterAll(() => {
         socket.rsocket.close();
     })

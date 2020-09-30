@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { RSocketRxjsModule } from 'ng-rsocket-rxjs';
+import { MimeTypes } from '../api/rsocket-mime.types';
 
 import { RSocketService, RSocketServiceOptions } from './rsocket.service';
 
@@ -13,6 +14,7 @@ describe('RSocketService', () => {
         rsocketConfig: {
           keepaliveTime: 30000,
           maxLifetime: 100000,
+          metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer(),
         },
         reconnectTimeout: 5000
       })],

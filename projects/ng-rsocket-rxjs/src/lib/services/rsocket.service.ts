@@ -64,7 +64,7 @@ export class RSocketService implements OnDestroy {
     this.$destroy.next(1);
   }
 
-  public route(route: string): FluentRequest {
+  public route(route: string): FluentRequest<any, any> {
     return new FluentRequest(this._socket, route);
   }
 

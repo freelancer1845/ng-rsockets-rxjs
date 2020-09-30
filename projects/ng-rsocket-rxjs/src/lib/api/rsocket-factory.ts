@@ -5,7 +5,7 @@ import { RSocketClient } from '../core/rsocket-client.impl';
 import { Transport } from '../core/transport/transport.api';
 import { WebsocketTransport } from '../core/transport/websocket-transport.impl';
 import { MessageRoutingRSocket } from '../messages/message-routing-rsocket';
-import { MimeTypes, MimeType } from './rsocket-mime.types';
+import { MimeTypes } from './rsocket-mime.types';
 import { RSocketState } from './rsocket.api';
 
 export class RSocketBuilder {
@@ -17,7 +17,7 @@ export class RSocketBuilder {
         keepaliveTime: 5000,
         maxLifetime: 100000,
         dataMimeType: MimeTypes.APPLICATION_JSON.toBuffer(),
-        metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_ROUTING.toBuffer(),
+        metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer(),
     }
 
     private _connectionString: string;
@@ -42,7 +42,7 @@ export class RSocketBuilder {
         return this;
     }
 
-    public dataMimeType(type: MimeType) {
+    public dataMimeType(type: MimeTypes<any>) {
         this._config.dataMimeType = type.toBuffer();
         return this;
     }
@@ -52,7 +52,7 @@ export class RSocketBuilder {
         return this;
     }
 
-    public metaDatamimeType(type: MimeType) {
+    public metaDataMimeType(type: MimeTypes<any>) {
         this._config.metadataMimeType = type.toBuffer();
         return this;
     }
@@ -75,6 +75,7 @@ export class RSocketBuilder {
 
 
     public messageRSocket(): Observable<MessageRoutingRSocket> {
+        this._config.metadataMimeType = MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer();
         return this.buildClient().pipe(map(client => {
             return new MessageRoutingRSocket(client);
         }));
