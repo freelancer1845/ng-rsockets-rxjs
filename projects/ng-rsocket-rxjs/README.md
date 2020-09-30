@@ -10,6 +10,7 @@ Basic library implementing RSockets RC 1 (Version 1.0).
 * Request Response - Both directions
 * Request Stream - Both direction + Backpressure support
 * Websocket Transport
+* RSocket Security (Only tested 'simple') (tested with spring-boot 2.3.4)
 
 ### Additional features
 
