@@ -46,8 +46,8 @@ export class Frame {
      * 
      * @param buffer Containing frame data
      */
-    constructor(public readonly buffer: ArrayBuffer) {
-        this.view = new DataView(buffer);
+    constructor(public readonly buffer: ArrayBufferView) {
+        this.view = new DataView(buffer.buffer);
     }
 
     public streamId(): number {
@@ -96,8 +96,8 @@ export class Frame {
     /**
      * Only meaningful if resume enabled!
      */
-    public resumeIdentificationToken(): ArrayBuffer {
-        return this.buffer.slice(20, this.tokenLength());
+    public resumeIdentificationToken(): Uint8Array {
+        return new Uint8Array(this.buffer.buffer, 20, this.tokenLength());
     }
 
     private getResumeEnableOffset(): number {
@@ -112,18 +112,18 @@ export class Frame {
         return this.view.getUint8(this.getResumeEnableOffset());
     }
 
-    public metadataMimeType(): ArrayBuffer {
+    public metadataMimeType(): Uint8Array {
         const start = this.getResumeEnableOffset() + 1
-        return this.buffer.slice(start, start + this.metadataMimeLength());
+        return new Uint8Array(this.buffer.buffer, start, this.metadataMimeLength());
     }
 
     public dataMimeLength(): number {
         return this.view.getUint8(this.getResumeEnableOffset() + 1 + this.metadataMimeLength());
     }
 
-    public dataMimeType(): ArrayBuffer {
+    public dataMimeType(): Uint8Array {
         const start = this.getResumeEnableOffset() + 1 + this.metadataMimeLength() + 1;
-        return this.buffer.slice(start, start + this.dataMimeLength());
+        return new Uint8Array(this.buffer.buffer, start, this.dataMimeLength());
     }
 
     public errorCode(): ErrorCode {
@@ -166,8 +166,8 @@ export class Frame {
         return (((this.view.getUint16(4)) >> 5) & 1) == 1;
     }
 
-    public metadataPushData(): ArrayBuffer {
-        return this.buffer.slice(6);
+    public metadataPushData(): Uint8Array {
+        return new Uint8Array(this.buffer.buffer, 6);
     }
 
     public canBeIgnored(): boolean {
@@ -191,34 +191,34 @@ export class Frame {
             case FrameType.SETUP:
                 const offset = this.getResumeEnableOffset() + 1 + this.metadataMimeLength() + 1 + this.dataMimeLength();
                 if (this.metadataPresent()) {
-                    return new Payload(this.buffer.slice(offset + 3 + this.metadataLength(offset)), this.buffer.slice(offset + 3, offset + 3 + this.metadataLength(offset)));
+                    return new Payload(new Uint8Array(this.buffer.buffer, offset + 3 + this.metadataLength(offset)), new Uint8Array(this.buffer.buffer, offset + 3, this.metadataLength(offset)));
                 } else {
-                    return new Payload(this.buffer.slice(offset));
+                    return new Payload(new Uint8Array(this.buffer.buffer, offset));
                 }
             case FrameType.ERROR:
-                return new Payload(this.buffer.slice(10));
+                return new Payload(new Uint8Array(this.buffer.buffer, 10));
             case FrameType.LEASE:
                 if (this.metadataPresent()) {
-                    return new Payload(this.buffer.slice(14 + 3 + this.metadataLength(14)), this.buffer.slice(14 + 3, 14 + 3 + this.metadataLength(3)));
+                    return new Payload(new Uint8Array(this.buffer.buffer, 14 + 3 + this.metadataLength(14)), new Uint8Array(this.buffer.buffer, 14 + 3, this.metadataLength(3)));
                 } else {
-                    return new Payload(this.buffer.slice(14));
+                    return new Payload(new Uint8Array(this.buffer.buffer, 14));
                 }
             case FrameType.KEEPALIVE:
-                return new Payload(this.buffer.slice(14));
+                return new Payload(new Uint8Array(this.buffer.buffer, 14));
             case FrameType.REQUEST_RESPONSE:
             case FrameType.REQUEST_FNF:
             case FrameType.PAYLOAD:
                 if (this.metadataPresent()) {
-                    return new Payload(this.buffer.slice(6 + 3 + this.metadataLength(6)), this.buffer.slice(6 + 3, 6 + 3 + this.metadataLength(6)));
+                    return new Payload(new Uint8Array(this.buffer.buffer, 6 + 3 + this.metadataLength(6)), new Uint8Array(this.buffer.buffer, 6 + 3, this.metadataLength(6)));
                 } else {
-                    return new Payload(this.buffer.slice(6));
+                    return new Payload(new Uint8Array(this.buffer.buffer, 6));
                 }
             case FrameType.REQUEST_STREAM:
             case FrameType.REQUEST_CHANNEL:
                 if (this.metadataPresent()) {
-                    return new Payload(this.buffer.slice(10 + 3 + this.metadataLength(10)), this.buffer.slice(10 + 3, 10 + 3 + this.metadataLength(10)));
+                    return new Payload(new Uint8Array(this.buffer.buffer, 10 + 3 + this.metadataLength(10)), new Uint8Array(this.buffer.buffer, 10 + 3, this.metadataLength(10)));
                 } else {
-                    return new Payload(this.buffer.slice(10));
+                    return new Payload(new Uint8Array(this.buffer.buffer, 10));
                 }
             case FrameType.REQUEST_N:
                 throw new Error('Frame Type REQUEST_N does not have payload attached!');
@@ -229,9 +229,9 @@ export class Frame {
             case FrameType.EXT:
                 // TODO : As I never used this feature I don't understand it... Probably needs work
                 if (this.metadataPresent()) {
-                    return new Payload(this.buffer.slice(10 + 3 + this.metadataLength(10)), this.buffer.slice(10 + 3, 10 + 3 + this.metadataLength(10)));
+                    return new Payload(new Uint8Array(this.buffer.buffer, 10 + 3 + this.metadataLength(10)), new Uint8Array(this.buffer.buffer, 10 + 3, this.metadataLength(10)));
                 } else {
-                    return new Payload(this.buffer.slice(10));
+                    return new Payload(new Uint8Array(this.buffer.buffer, 10));
                 }
         }
     }

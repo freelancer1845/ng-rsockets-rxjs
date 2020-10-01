@@ -6,7 +6,7 @@ import { factory } from "./config-log4j";
 import { RSocketConfig } from "./config/rsocket-config";
 import { FragmentContext } from './protocol/fragments';
 import { ErrorCode, Frame, FrameType } from "./protocol/frame";
-import { createCancelFrame, createErrorFrame, createKeepaliveFrame, createPayloadFrame, createRequestFNFFrame, createRequestNFrame, createRequestResponseFrame, createRequestStreamFrame, createSetupFrame } from "./protocol/frame-factory";
+import { createErrorFrame, createPayloadFrame, createRequestFNFFrame, createRequestNFrame, createRequestStreamFrame, FrameBuilder } from "./protocol/frame-factory";
 import { Payload } from "./protocol/payload";
 import { Transport } from "./transport/transport.api";
 
@@ -57,7 +57,7 @@ export class RSocketClient implements RSocket {
                 this._state.next(RSocketState.Disconnected);
             }
         });
-        const setupFrame = createSetupFrame(config);
+        const setupFrame = FrameBuilder.setup().buildFromConfig(config);
         if (config.honorsLease == false) {
             protocolLog.debug('Sending Setup frame without honoring lease...');
             this.transport.send(setupFrame);
@@ -134,11 +134,11 @@ export class RSocketClient implements RSocket {
                 subscription.unsubscribe();
             });
 
-            this.transport.send(createRequestResponseFrame(streamId, payload));
+            this.transport.send(FrameBuilder.requestResponse().streamId(streamId).payload(payload).build());
             return () => {
                 if (subscription.closed == false) {
                     subscription.unsubscribe();
-                    this.transport.send(createCancelFrame(streamId));
+                    this.transport.send(FrameBuilder.cancel().streamId(streamId).build());
                 }
             }
         });
@@ -208,7 +208,7 @@ export class RSocketClient implements RSocket {
             }
             return () => {
                 $requestDestroy.next(0);
-                this.transport.send(createCancelFrame(streamId));
+                this.transport.send(FrameBuilder.cancel().streamId(streamId).build());
             }
         });
 
@@ -373,13 +373,13 @@ export class RSocketClient implements RSocket {
                 },
                 error: error => emitter.error(error),
             });
-            const keepaliveFrame = createKeepaliveFrame(true, this.transport.recvPosition(), new Payload(data));
+            const keepaliveFrame = FrameBuilder.keepalive().flagRespond().lastReceivedPosition(this.transport.recvPosition()).data(data).build();
             this.transport.send(keepaliveFrame);
             return () => sub.unsubscribe()
         }).pipe(takeUntil(this.$destroy), repeatWhen(() => interval(this._config.keepaliveTime))).subscribe();
 
         this._incoming.pipe(takeUntil(this.$destroy), filter(p => p.type() == FrameType.KEEPALIVE && p.respondWithKeepalive() == true)).subscribe(p => {
-            const keepaliveAnswer = createKeepaliveFrame(false, this.transport.recvPosition(), p.payload());
+            const keepaliveAnswer = FrameBuilder.keepalive().lastReceivedPosition(this.transport.recvPosition()).data(p.payload().data).build();
             this.transport.send(keepaliveAnswer);
         });
     }

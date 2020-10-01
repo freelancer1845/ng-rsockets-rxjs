@@ -4,7 +4,7 @@ export function stringToUtf8ArrayBuffer(_string: string) {
     return new TextEncoder().encode(_string);
 }
 
-export function arrayBufferToUtf8String(buffer: ArrayBuffer) {
+export function arrayBufferToUtf8String(buffer: Uint8Array) {
     return new TextDecoder('utf-8').decode(buffer);
 }
 

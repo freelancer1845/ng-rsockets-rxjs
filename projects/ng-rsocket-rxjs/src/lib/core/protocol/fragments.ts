@@ -30,10 +30,8 @@ export class FragmentContext {
                 }
                 dataLength += fragment.data.byteLength;
             }
-            let metadataBuffer = new ArrayBuffer(metdataLength);
-            let dataBuffer = new ArrayBuffer(dataLength);
-            let metadataBufferView = new Uint8Array(metadataBuffer);
-            let dataBufferView = new Uint8Array(dataBuffer);
+            let metadataBufferView = new Uint8Array(metdataLength);
+            let dataBufferView = new Uint8Array(metdataLength);
             let position = 0;
             for (let fragment of this.fragments) {
                 metadataBufferView.set(new Uint8Array(fragment.metadata), position);
@@ -42,7 +40,7 @@ export class FragmentContext {
                 position += fragment.data.byteLength;
             }
             this.fragments = [];
-            return new Payload(dataBuffer, metadataBuffer);
+            return new Payload(dataBufferView, metadataBufferView);
         }
     }
 

@@ -16,7 +16,7 @@ Basic library implementing RSockets RC 1 (Version 1.0).
 
 * MimeTypes:
   * application/json using JSON.stringify/parse
-  * application/octet-stream giving and using raw ArrayBuffers
+  * application/octet-stream giving and using UInt8Arrays
   * 'MESSAGE_X_RSOCKET_ROUTING' to  work with spring-boot rsocket MessageMapping etc.
 * Automatic reconnect when using RSocketBuilder
 * A service that can be used in your Angular Project to ease establishing of the connection (works well with Spring Boot RSocket)

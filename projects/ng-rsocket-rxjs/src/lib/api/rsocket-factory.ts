@@ -14,7 +14,7 @@ export class RSocketBuilder {
         majorVersion: 1,
         minorVersion: 0,
         honorsLease: false,
-        keepaliveTime: 5000,
+        keepaliveTime: 30000,
         maxLifetime: 100000,
         dataMimeType: MimeTypes.APPLICATION_JSON.toBuffer(),
         metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer(),
@@ -29,7 +29,7 @@ export class RSocketBuilder {
         return this;
     }
 
-    public resumeIdentificationToken(token: ArrayBuffer): RSocketBuilder {
+    public resumeIdentificationToken(token: Uint8Array): RSocketBuilder {
         throw new Error('Resume not Implemented');
     }
 
@@ -47,7 +47,7 @@ export class RSocketBuilder {
         return this;
     }
 
-    public dataMimeTypeDirect(type: ArrayBuffer) {
+    public dataMimeTypeDirect(type: Uint8Array) {
         this._config.dataMimeType = type;
         return this;
     }
@@ -57,7 +57,7 @@ export class RSocketBuilder {
         return this;
     }
 
-    public metaDatamimeTypeDirect(type: ArrayBuffer) {
+    public metaDatamimeTypeDirect(type: Uint8Array) {
         this._config.metadataMimeType = type;
         return this;
     }

@@ -5,11 +5,11 @@ import { Payload } from "../protocol/payload";
 export interface RSocketConfig {
     majorVersion: number;
     minorVersion: number,
-    metadataMimeType: ArrayBuffer;
-    dataMimeType: ArrayBuffer;
+    metadataMimeType: Uint8Array;
+    dataMimeType: Uint8Array;
     keepaliveTime: number;
     maxLifetime: number;
-    resumeIdentificationToken?: ArrayBuffer;
+    resumeIdentificationToken?: Uint8Array;
     honorsLease: boolean;
     setupPayload?: Payload;
 }

@@ -13,7 +13,7 @@ export interface Authentication {
     token?: string;
     username?: string;
     password?: string;
-    customData?: ArrayBuffer;
+    customData?: Uint8Array;
 }
 
 
@@ -34,7 +34,7 @@ export class MimeTypes<T> {
     public static readonly MESSAGE_X_RSOCKET_COMPOSITE_METADATA = new MimeTypes<CompositeMetaData[]>("message/x.rsocket.composite-metadata.v0");
     public static readonly MESSAGE_X_RSOCKET_AUTHENTICATION = new MimeTypes<Authentication>("message/x.rsocket.authentication.v0");
     public static readonly APPLICATION_JSON = new MimeTypes<any>("application/json");
-    public static readonly APPLICATION_OCTET_STREAM = new MimeTypes<ArrayBuffer>("application/octet-stream");
+    public static readonly APPLICATION_OCTET_STREAM = new MimeTypes<Uint8Array>("application/octet-stream");
 
 
     constructor(public readonly name: string) {
@@ -56,7 +56,7 @@ export class MimeTypes<T> {
         return null;
     }
 
-    toBuffer(): ArrayBuffer {
+    toBuffer(): Uint8Array {
         return stringToUtf8ArrayBuffer(this.name);
     }
 
@@ -64,13 +64,13 @@ export class MimeTypes<T> {
         return this.name == other.name;
     }
 
-    mapFromBuffer(buffer: ArrayBuffer): T {
+    mapFromBuffer(buffer: Uint8Array): T {
         return mapToTypeByMimeType(this, buffer);
     }
 
-    mapToBuffer(object?: T): ArrayBuffer {
+    mapToBuffer(object?: T): Uint8Array {
         if (object == undefined) {
-            return new ArrayBuffer(0);
+            return new Uint8Array(0);
         }
         return mapToBufferByMimeType(this, object);
     }
@@ -82,8 +82,8 @@ export class MimeTypes<T> {
 
 
 
-function deserializeCompositeMetadata(buffer: ArrayBuffer): CompositeMetaData[] {
-    const view = new DataView(buffer);
+function deserializeCompositeMetadata(buffer: Uint8Array): CompositeMetaData[] {
+    const view = new DataView(buffer.buffer, buffer.byteOffset);
     let idx = 0;
     const metadataPayloads: CompositeMetaData[] = [];
     while (idx < buffer.byteLength) {
@@ -114,8 +114,8 @@ function deserializeCompositeMetadata(buffer: ArrayBuffer): CompositeMetaData[] 
 
 interface CompositeMetadataPart {
     idOrLength: number;
-    metadataString?: ArrayBuffer;
-    data: ArrayBuffer;
+    metadataString?: Uint8Array;
+    data: Uint8Array;
 }
 
 function serializeCompositeMetadata(data: CompositeMetaData[]) {
@@ -145,9 +145,8 @@ function serializeCompositeMetadata(data: CompositeMetaData[]) {
             requiredBufferSize += 1 + part.metadataString.byteLength + part.data.byteLength + 3;
         }
     }
-    const buffer = new ArrayBuffer(requiredBufferSize);
-    const view = new DataView(buffer);
-    const uint8View = new Uint8Array(buffer);
+    const uint8View = new Uint8Array(requiredBufferSize);
+    const view = new DataView(uint8View.buffer);
     let idx = 0;
     for (let part of metadataParts) {
         if (part.metadataString == undefined) {
@@ -164,11 +163,11 @@ function serializeCompositeMetadata(data: CompositeMetaData[]) {
         idx += part.data.byteLength;
     }
 
-    return buffer;
+    return uint8View;
 }
 
-function deserializeAuthentication(buffer: ArrayBuffer): Authentication {
-    const view = new DataView(buffer);
+function deserializeAuthentication(buffer: Uint8Array): Authentication {
+    const view = new DataView(buffer.buffer, buffer.byteOffset);
     let idx = 0;
     const authIdOrLength = view.getUint8(idx++);
     let authentication: Authentication;
@@ -200,12 +199,12 @@ function deserializeAuthentication(buffer: ArrayBuffer): Authentication {
     return authentication;
 }
 
-function serializeAuthentication(authentication: Authentication): ArrayBuffer {
+function serializeAuthentication(authentication: Authentication): Uint8Array {
 
-    let usernameBuffer: ArrayBuffer;
-    let passwordBuffer: ArrayBuffer;
-    let tokenBuffer: ArrayBuffer;
-    let typeBuffer: ArrayBuffer;
+    let usernameBuffer: Uint8Array;
+    let passwordBuffer: Uint8Array;
+    let tokenBuffer: Uint8Array;
+    let typeBuffer: Uint8Array;
     let length = 0;
     if (authentication.type == "simple") {
         length++;
@@ -225,9 +224,9 @@ function serializeAuthentication(authentication: Authentication): ArrayBuffer {
         length += typeBuffer.byteLength;
         length += authentication.customData.byteLength;
     }
-    const buffer = new ArrayBuffer(length);
-    const uint8View = new Uint8Array(buffer);
-    const view = new DataView(buffer);
+
+    const uint8View = new Uint8Array(length);
+    const view = new DataView(uint8View.buffer);
     let idx = 0;
     if (authentication.type == "simple") {
         view.setUint8(idx++, (1 << 7) | 0x00);
@@ -247,20 +246,20 @@ function serializeAuthentication(authentication: Authentication): ArrayBuffer {
         idx += typeBuffer.byteLength;
         uint8View.set(new Uint8Array(authentication.customData), idx);
     }
-    return buffer;
+    return uint8View;
 }
 
-function serializeMessageRoute(route: string): ArrayBuffer {
+function serializeMessageRoute(route: string): Uint8Array {
     return stringToUtf8ArrayBuffer(String.fromCharCode(route.length) + route);
 }
 
-function deserializeMessageRoute(data: ArrayBuffer): string {
+function deserializeMessageRoute(data: Uint8Array): string {
     const view = new Uint8Array(data);
     const routeLength = view[0];
-    return arrayBufferToUtf8String(data.slice(1, 1 + routeLength));
+    return arrayBufferToUtf8String(data.slice(1));
 }
 
-function mapToTypeByMimeType<T>(type: MimeTypes<T>, buffer: ArrayBuffer): T {
+function mapToTypeByMimeType<T>(type: MimeTypes<T>, buffer: Uint8Array): T {
     if (type.equals(MimeTypes.APPLICATION_JSON)) {
         return JSON.parse(arrayBufferToUtf8String(buffer));
     } else if (type.equals(MimeTypes.APPLICATION_OCTET_STREAM)) {
@@ -274,11 +273,11 @@ function mapToTypeByMimeType<T>(type: MimeTypes<T>, buffer: ArrayBuffer): T {
     }
 }
 
-function mapToBufferByMimeType<T>(type: MimeTypes<T>, data: T): ArrayBuffer {
+function mapToBufferByMimeType<T>(type: MimeTypes<T>, data: T): Uint8Array {
     if (type.equals(MimeTypes.APPLICATION_JSON)) {
         return stringToUtf8ArrayBuffer(JSON.stringify(data));
     } else if (type.equals(MimeTypes.APPLICATION_OCTET_STREAM)) {
-        return data as unknown as ArrayBuffer;
+        return data as unknown as Uint8Array;
     } else if (type.equals(MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA)) {
         return serializeCompositeMetadata(data as unknown as CompositeMetaData[]);
     } else if (type.equals(MimeTypes.MESSAGE_X_RSOCKET_AUTHENTICATION)) {

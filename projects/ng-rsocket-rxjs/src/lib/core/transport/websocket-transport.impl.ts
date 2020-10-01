@@ -16,7 +16,7 @@ export class WebsocketTransport implements Transport {
     private _recvPosition = 0;
     private _foreignRecvPosition = 0;
 
-    private subject: WebSocketSubject<ArrayBuffer>;
+    private subject: WebSocketSubject<any>;
 
     constructor(private readonly url: string) {
         log.debug(`Constructing websocket with target url ${url}`);
@@ -53,7 +53,7 @@ export class WebsocketTransport implements Transport {
     public incoming(): Observable<Frame> {
 
         return this.subject.pipe(map(data => {
-            const frame = new Frame(data);
+            const frame = new Frame(new Uint8Array(data));
             logFrame(frame, false);
             this._recvPosition += data.byteLength;
             if (frame.type() == FrameType.KEEPALIVE) {
