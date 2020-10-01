@@ -4,140 +4,6 @@ import { ErrorCode, Frame, FrameType } from "./frame";
 import { Payload } from "./payload";
 
 
-function setStreamId(view: DataView, streamId: number) {
-    view.setUint32(0, streamId);
-}
-
-function setFrameType(view: DataView, type: FrameType) {
-    view.setUint16(4, view.getUint16(4) | type << 10);
-}
-
-function setMetaDataPresent(view: DataView) {
-    view.setUint16(4, view.getUint16(4) | (1 << 8));
-}
-
-
-
-function setInitialRequests(view: DataView, requests: number) {
-    view.setUint32(6, requests);
-}
-
-function setPayload(buffer: ArrayBuffer, payload: Payload, offset: number) {
-    const uint8View = new Uint8Array(buffer, offset);
-    let position = 0;
-    if (payload.hasMetadata()) {
-        const length = payload.metadata.byteLength;
-        uint8View[position++] = length >> 16 & 0xFF;
-        uint8View[position++] = length >> 8 & 0xFF;
-        uint8View[position++] = length & 0xFF;
-        uint8View.set(new Uint8Array(payload.metadata), position);
-        position += payload.metadata.byteLength;
-    }
-    uint8View.set(new Uint8Array(payload.data), position);
-}
-
-function setComplete(view: DataView) {
-    view.setUint8(5, view.getUint8(5) | (1 << 6));
-}
-
-function setNext(view: DataView) {
-    view.setUint8(5, view.getUint8(5) | (1 << 5));
-}
-
-function setErrorCode(view: DataView, code: ErrorCode) {
-    view.setInt32(6, code);
-}
-
-function setRequests(view: DataView, requests: number) {
-    setInitialRequests(view, requests);
-}
-
-
-
-
-export function createRequestStreamFrame(streamId: number, data: Payload, initialRequest: number) {
-    let length = 10 + data.data.byteLength;
-    if (data.hasMetadata()) {
-        length += 3 + data.metadata.byteLength;
-    }
-    const buffer = new ArrayBuffer(length);
-    const view = new DataView(buffer);
-    setStreamId(view, streamId);
-    setFrameType(view, FrameType.REQUEST_STREAM);
-    setInitialRequests(view, initialRequest);
-    if (data.hasMetadata()) {
-        setMetaDataPresent(view);
-    }
-    setPayload(buffer, data, 10);
-    return new Frame(new Uint8Array(buffer));
-}
-
-export function createRequestFNFFrame(streamId: number, data: Payload) {
-    let length = 6 + data.data.byteLength;
-    if (data.hasMetadata()) {
-        length += 3 + data.metadata.byteLength;
-    }
-    const buffer = new ArrayBuffer(length);
-    const view = new DataView(buffer);
-    setStreamId(view, streamId);
-    setFrameType(view, FrameType.REQUEST_FNF);
-    if (data.hasMetadata()) {
-        setMetaDataPresent(view);
-    }
-
-    setPayload(buffer, data, 6);
-    return new Frame(new Uint8Array(buffer));
-}
-
-export function createPayloadFrame(streamId: number, data: Payload | null, complete: boolean) {
-    let length = 6;
-    if (data != null) {
-        length += data.data.byteLength;
-        if (data.hasMetadata()) {
-            length += 3 + data.metadata.byteLength;
-        }
-    }
-    const buffer = new ArrayBuffer(length);
-    const view = new DataView(buffer);
-    setStreamId(view, streamId);
-    setFrameType(view, FrameType.PAYLOAD);
-    if (length > 6) {
-        setNext(view);
-        if (data.hasMetadata()) {
-            setMetaDataPresent(view);
-        }
-        setPayload(buffer, data, 6);
-    }
-    if (complete) {
-        setComplete(view)
-    }
-    return new Frame(new Uint8Array(buffer));
-}
-
-export function createErrorFrame(streamId: number, code: ErrorCode, message: string) {
-    var messageBuffer = stringToUtf8ArrayBuffer(message);
-    let length = 6 + 4 + messageBuffer.byteLength;
-    const buffer = new ArrayBuffer(length);
-    const view = new DataView(buffer);
-    setStreamId(view, streamId);
-    setFrameType(view, FrameType.ERROR);
-    setErrorCode(view, code);
-    new Uint8Array(buffer).set(new Uint8Array(messageBuffer), 10);
-    return new Frame(new Uint8Array(buffer));
-}
-
-export function createRequestNFrame(streamId: number, requests: number) {
-    const buffer = new ArrayBuffer(10);
-    const view = new DataView(buffer);
-
-    setStreamId(view, streamId);
-    setFrameType(view, FrameType.REQUEST_N);
-    setInitialRequests(view, requests);
-    return new Frame(new Uint8Array(buffer));
-}
-
-
-
 export class FrameBuilder {
 
     protected buffer: ArrayBuffer;
@@ -172,6 +38,26 @@ export class FrameBuilder {
         return new RequestResponseFrameBuilder();
     }
 
+    public static requestStream() {
+        return new RequestStreamFrameBuilder();
+    }
+
+    public static requestFNF() {
+        return new RequestFNFFrameBuilder();
+    }
+
+    public static payload() {
+        return new PayloadFrameBuilder();
+    }
+
+    public static error() {
+        return new ErrorFrameBuilder();
+    }
+
+    public static requestN() {
+        return new RequestNFrameBuilder();
+    }
+
     public build(): Frame {
         return new Frame(new Uint8Array(this.buffer, 0, this.writerIndex));
     }
@@ -197,6 +83,10 @@ export class FrameBuilder {
         return this;
     }
 
+
+    protected setRequests(requests: number) {
+        this.view.setUint32(6, requests);
+    }
 }
 
 export class SetupFrameBuilder extends FrameBuilder {
@@ -312,6 +202,7 @@ export class SetupFrameBuilder extends FrameBuilder {
 
     }
 
+
 }
 
 export class RequestOrPayloadBuilder extends FrameBuilder {
@@ -320,15 +211,47 @@ export class RequestOrPayloadBuilder extends FrameBuilder {
         super(initialSize);
     }
 
-    public flagComplete(view: DataView) {
-        this.view.setUint8(5, this.view.getUint8(5) | (1 << 6));
+
+    payload(data: Payload) {
+        if (data.hasMetadata()) {
+            this.flagMetadataPresent();
+            this.requireMinFreeBytes(data.metadata.byteLength + 3 + data.data.byteLength);
+            this.directMetadataWrite(data.metadata.byteLength, buffer => {
+                buffer.set(new Uint8Array(data.metadata));
+                return data.metadata.byteLength;
+            });
+        } else {
+            this.requireMinFreeBytes(data.data.byteLength);
+        }
+        this.directDataWrite(data.data.byteLength, buffer => {
+            buffer.set(new Uint8Array(data.data));
+            return data.data.byteLength;
+        });
         return this;
     }
 
-    public flagNext(view: DataView) {
-        this.view.setUint8(5, this.view.getUint8(5) | (1 << 5));
+    directMetadataWrite(requiredSize: number, writeCall: (buffer: Uint8Array) => number) {
+        console.log("Writing Metadata");
+        this.flagMetadataPresent();
+        this.requireMinFreeBytes(requiredSize + 3);
+        const view = new Uint8Array(this.buffer, this.writerIndex);
+        const metadataLength = writeCall(new Uint8Array(this.buffer, this.writerIndex + 3));
+        view[0] = metadataLength >> 16 & 0xFF;
+        view[1] = metadataLength >> 8 & 0xFF;
+        view[2] = metadataLength & 0xFF;
+        this.writerIndex += metadataLength + 3;
         return this;
     }
+
+    directDataWrite(requiredSize: number, writeCall: (buffer: Uint8Array) => number) {
+        console.log("Writing Data");
+        this.requireMinFreeBytes(requiredSize);
+        const bytesWritten = writeCall(new Uint8Array(this.buffer, this.writerIndex));
+        this.writerIndex += bytesWritten;
+        return this;
+    }
+
+
 }
 
 export class KeepaliveFrameBuilder extends FrameBuilder {
@@ -371,7 +294,7 @@ export class CancelFrameBuilder extends FrameBuilder {
 }
 
 
-export class RequestResponseFrameBuilder extends FrameBuilder {
+export class RequestResponseFrameBuilder extends RequestOrPayloadBuilder {
     constructor() {
         super(128)
         this.setFrameType(FrameType.REQUEST_RESPONSE);
@@ -379,43 +302,90 @@ export class RequestResponseFrameBuilder extends FrameBuilder {
     }
 
 
+}
 
-    payload(data: Payload) {
-        if (data.hasMetadata()) {
-            this.flagMetadataPresent();
-            this.requireMinFreeBytes(data.metadata.byteLength + 3 + data.data.byteLength);
-            this.directMetadataWrite(data.metadata.byteLength, buffer => {
-                buffer.set(new Uint8Array(data.metadata));
-                return data.metadata.byteLength;
-            });
-        } else {
-            this.requireMinFreeBytes(data.data.byteLength);
-        }
-        this.directDataWrite(data.data.byteLength, buffer => {
-            buffer.set(new Uint8Array(data.data));
-            return data.data.byteLength;
-        });
+export class RequestStreamFrameBuilder extends RequestOrPayloadBuilder {
+
+
+    constructor() {
+        super(128)
+        this.setFrameType(FrameType.REQUEST_STREAM);
+        this.writerIndex = 10;
+    }
+
+    public requests(requests: number) {
+        this.setRequests(requests);
         return this;
     }
 
-    directMetadataWrite(requiredSize: number, writeCall: (buffer: Uint8Array) => number) {
-        console.log("Writing Metadata");
-        this.flagMetadataPresent();
-        this.requireMinFreeBytes(requiredSize + 3);
-        const view = new Uint8Array(this.buffer, this.writerIndex);
-        const metadataLength = writeCall(new Uint8Array(this.buffer, this.writerIndex + 3));
-        view[0] = metadataLength >> 16 & 0xFF;
-        view[1] = metadataLength >> 8 & 0xFF;
-        view[2] = metadataLength & 0xFF;
-        this.writerIndex += metadataLength + 3;
+}
+
+export class RequestFNFFrameBuilder extends RequestOrPayloadBuilder {
+
+    constructor() {
+        super(128)
+        this.setFrameType(FrameType.REQUEST_FNF);
+        this.writerIndex = 6;
+    }
+
+}
+
+export class PayloadFrameBuilder extends RequestOrPayloadBuilder {
+
+    constructor() {
+        super(128)
+        this.setFrameType(FrameType.PAYLOAD);
+        this.writerIndex = 6;
+
+    }
+
+    public flagComplete() {
+        this.view.setUint8(5, this.view.getUint8(5) | (1 << 6));
         return this;
     }
 
-    directDataWrite(requiredSize: number, writeCall: (buffer: Uint8Array) => number) {
-        console.log("Writing Data");
-        this.requireMinFreeBytes(requiredSize);
-        const bytesWritten = writeCall(new Uint8Array(this.buffer, this.writerIndex));
-        this.writerIndex += bytesWritten;
+    public flagNext() {
+        this.view.setUint8(5, this.view.getUint8(5) | (1 << 5));
         return this;
     }
+
+}
+
+export class ErrorFrameBuilder extends FrameBuilder {
+
+    constructor() {
+        super(128)
+        this.setFrameType(FrameType.ERROR);
+        this.writerIndex = 10;
+    }
+
+    public message(msg: string) {
+        const codedMsg = stringToUtf8ArrayBuffer(msg);
+        this.requireMinFreeBytes(codedMsg.byteLength);
+        new Uint8Array(this.buffer, this.writerIndex).set(codedMsg);
+        this.writerIndex += codedMsg.length;
+        return this;
+    }
+
+
+    public errorCode(code: ErrorCode) {
+        this.view.setInt32(6, code);
+        return this;
+    }
+}
+
+export class RequestNFrameBuilder extends FrameBuilder {
+
+    constructor() {
+        super(10)
+        this.setFrameType(FrameType.REQUEST_N);
+        this.writerIndex = 10;
+    }
+
+    requests(n: number) {
+        this.setRequests(n);
+        return this;
+    }
+
+
 }

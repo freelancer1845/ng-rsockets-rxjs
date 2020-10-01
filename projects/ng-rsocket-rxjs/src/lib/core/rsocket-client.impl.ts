@@ -6,7 +6,7 @@ import { factory } from "./config-log4j";
 import { RSocketConfig } from "./config/rsocket-config";
 import { FragmentContext } from './protocol/fragments';
 import { ErrorCode, Frame, FrameType } from "./protocol/frame";
-import { createErrorFrame, createPayloadFrame, createRequestFNFFrame, createRequestNFrame, createRequestStreamFrame, FrameBuilder } from "./protocol/frame-factory";
+import { FrameBuilder } from "./protocol/frame-factory";
 import { Payload } from "./protocol/payload";
 import { Transport } from "./transport/transport.api";
 
@@ -194,15 +194,15 @@ export class RSocketClient implements RSocket {
                 emitter.complete();
             });
             if (requester === undefined) {
-                this.transport.send(createRequestStreamFrame(streamId, payload, 2 ** 31 - 1));
+                this.transport.send(FrameBuilder.requestStream().streamId(streamId).payload(payload).requests(2 ** 31 - 1).build());
             } else {
                 let initialRequest = true;
                 requester.pipe(takeUntil($requestDestroy)).subscribe(requests => {
                     if (initialRequest == true) {
                         initialRequest = false;
-                        this.transport.send(createRequestStreamFrame(streamId, payload, requests));
+                        this.transport.send(FrameBuilder.requestStream().streamId(streamId).payload(payload).requests(requests).build());
                     } else {
-                        this.transport.send(createRequestNFrame(streamId, requests));
+                        this.transport.send(FrameBuilder.requestN().streamId(streamId).requests(requests).build());
                     }
                 });
             }
@@ -226,7 +226,7 @@ export class RSocketClient implements RSocket {
         this._state.pipe(filter(s => s == RSocketState.Connected), take(1)).subscribe(s => {
             protocolLog.debug("Executing Request FNF");
             const streamId = this.getNewStreamId();
-            this.transport.send(createRequestFNFFrame(streamId, payload));
+            this.transport.send(FrameBuilder.requestFNF().streamId(streamId).payload(payload).build());
         });
     }
 
@@ -242,9 +242,9 @@ export class RSocketClient implements RSocket {
             map(p => {
                 switch (p.kind) {
                     case "N":
-                        return Notification.createNext(createPayloadFrame(f.streamId(), p.value, true));
+                        return Notification.createNext(FrameBuilder.payload().streamId(f.streamId()).payload(p.value).flagComplete().flagNext().build());
                     case "E":
-                        return Notification.createNext(createErrorFrame(f.streamId(), ErrorCode.APPLICATION_ERROR, p.error.message));
+                        return Notification.createNext(FrameBuilder.error().errorCode(ErrorCode.APPLICATION_ERROR).message(p.error.message).streamId(f.streamId()).build());
                     case "C":
                         return Notification.createComplete();
                 }
@@ -305,14 +305,14 @@ export class RSocketClient implements RSocket {
                 switch (p.kind) {
                     case "N":
                         requests--;
-                        return Notification.createNext(createPayloadFrame(f.streamId(), p.value as Payload, false));
+                        return Notification.createNext(FrameBuilder.payload().streamId(f.streamId()).payload(p.value as Payload).flagNext().build())
                     case "E":
                         signalComplete.next(0);
-                        this.transport.send(createErrorFrame(f.streamId(), ErrorCode.APPLICATION_ERROR, p.error.message));
+                        this.transport.send(FrameBuilder.error().errorCode(ErrorCode.APPLICATION_ERROR).message(p.error.message).streamId(f.streamId()).build());
                         return Notification.createComplete();
                     case "C":
                         signalComplete.next(0);
-                        this.transport.send(createPayloadFrame(f.streamId(), null, true));
+                        this.transport.send(FrameBuilder.payload().streamId(f.streamId()).flagComplete().build());
                         return Notification.createComplete();
                 }
             }),
