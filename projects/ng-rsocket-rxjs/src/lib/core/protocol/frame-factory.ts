@@ -232,7 +232,6 @@ export class RequestOrPayloadBuilder extends FrameBuilder {
     }
 
     directMetadataWrite(requiredSize: number, writeCall: (buffer: Uint8Array) => number) {
-        console.log("Writing Metadata");
         this.flagMetadataPresent();
         this.requireMinFreeBytes(requiredSize + 3);
         const view = new Uint8Array(this.buffer, this.writerIndex);
@@ -245,7 +244,6 @@ export class RequestOrPayloadBuilder extends FrameBuilder {
     }
 
     directDataWrite(requiredSize: number, writeCall: (buffer: Uint8Array) => number) {
-        console.log("Writing Data");
         this.requireMinFreeBytes(requiredSize);
         const bytesWritten = writeCall(new Uint8Array(this.buffer, this.writerIndex));
         this.writerIndex += bytesWritten;
