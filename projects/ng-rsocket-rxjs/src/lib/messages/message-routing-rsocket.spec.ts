@@ -19,8 +19,8 @@ describe("request_patterns", () => {
         const client = new RSocketClient(transport);
         socket = new MessageRoutingRSocket(client);
         client.establish({
-            dataMimeType: MimeTypes.APPLICATION_JSON.toBuffer(),
-            metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer(),
+            dataMimeType: MimeTypes.APPLICATION_JSON,
+            metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
             honorsLease: false,
             keepaliveTime: 30000,
             majorVersion: 1,

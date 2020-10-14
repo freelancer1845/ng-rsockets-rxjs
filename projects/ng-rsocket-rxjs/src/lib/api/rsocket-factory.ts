@@ -1,6 +1,7 @@
 import { Observable } from 'rxjs';
 import { delay, filter, map, retryWhen, take } from 'rxjs/operators';
 import { RSocketConfig } from '../core/config/rsocket-config';
+import { Payload } from '../core/protocol/payload';
 import { RSocketClient } from '../core/rsocket-client.impl';
 import { Transport } from '../core/transport/transport.api';
 import { WebsocketTransport } from '../core/transport/websocket-transport.impl';
@@ -10,14 +11,14 @@ import { RSocketState } from './rsocket.api';
 
 export class RSocketBuilder {
 
-    private _config: RSocketConfig = {
+    private _config: RSocketConfig<any, any> = {
         majorVersion: 1,
         minorVersion: 0,
         honorsLease: false,
         keepaliveTime: 30000,
         maxLifetime: 100000,
-        dataMimeType: MimeTypes.APPLICATION_JSON.toBuffer(),
-        metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer(),
+        dataMimeType: MimeTypes.APPLICATION_JSON,
+        metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
     }
 
     private _connectionString: string;
@@ -43,24 +44,16 @@ export class RSocketBuilder {
     }
 
     public dataMimeType(type: MimeTypes<any>) {
-        this._config.dataMimeType = type.toBuffer();
-        return this;
-    }
-
-    public dataMimeTypeDirect(type: Uint8Array) {
         this._config.dataMimeType = type;
         return this;
     }
 
-    public metaDataMimeType(type: MimeTypes<any>) {
-        this._config.metadataMimeType = type.toBuffer();
-        return this;
-    }
 
-    public metaDatamimeTypeDirect(type: Uint8Array) {
+    public metaDataMimeType(type: MimeTypes<any>) {
         this._config.metadataMimeType = type;
         return this;
     }
+
 
     public connectionString(str: string) {
         this._connectionString = str;
@@ -73,9 +66,24 @@ export class RSocketBuilder {
         return this;
     }
 
+    public setupData(data: any) {
+        this._config.data = data;
+        return this;
+    }
+
+    public setupMetadata(data: any) {
+        this._config.metaData = data;
+        return this;
+    }
 
     public messageRSocket(): Observable<MessageRoutingRSocket> {
-        this._config.metadataMimeType = MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer();
+        if (this._config.metadataMimeType.equals(MimeTypes.MESSAGE_X_RSOCKET_AUTHENTICATION)) {
+            this._config.metadataMimeType = MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA;
+            this._config.metaData = [{
+                type: MimeTypes.MESSAGE_X_RSOCKET_AUTHENTICATION,
+                data: this._config.metaData
+            }]
+        }
         return this.buildClient().pipe(map(client => {
             return new MessageRoutingRSocket(client);
         }));

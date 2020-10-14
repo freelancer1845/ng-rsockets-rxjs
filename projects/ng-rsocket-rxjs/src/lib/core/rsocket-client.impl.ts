@@ -17,7 +17,7 @@ export class RSocketClient implements RSocket {
 
     private _state: BehaviorSubject<RSocketState> = new BehaviorSubject<RSocketState>(RSocketState.Disconnected);
     private _incoming: Subject<Frame> = new Subject();
-    private _config: RSocketConfig | undefined;
+    private _config: RSocketConfig<any, any> | undefined;
 
     private streamIdsHolder: number[] = [];
     private streamIdCounter = 0;
@@ -38,7 +38,7 @@ export class RSocketClient implements RSocket {
     }
 
 
-    public establish(config: RSocketConfig): void {
+    public establish(config: RSocketConfig<any, any>): void {
         this._config = config;
         this.transport.incoming().pipe(
             takeUntil(this.$destroy)

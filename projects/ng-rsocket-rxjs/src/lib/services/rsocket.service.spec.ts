@@ -1,10 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { RSocketRxjsModule } from 'ng-rsocket-rxjs';
+import { RSocketRxjsModule, RSocketService } from 'ng-rsocket-rxjs';
 import { MimeTypes } from '../api/rsocket-mime.types';
 
-import { RSocketService, RSocketServiceOptions } from './rsocket.service';
 
-describe('RSocketService', () => {
+describe('RSocketRxjsModule.forRoot', () => {
   let service: RSocketService;
 
   beforeEach(() => {
@@ -14,18 +13,10 @@ describe('RSocketService', () => {
         rsocketConfig: {
           keepaliveTime: 30000,
           maxLifetime: 100000,
-          metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.toBuffer(),
+          metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
         },
         reconnectTimeout: 5000
       })],
-      providers: [
-        {
-          provide: RSocketServiceOptions,
-          useFactory: () => {
-            return new RSocketServiceOptions({}, "ws://localhost:8080/rsocket", 5000);
-          }
-        }
-      ]
     });
     service = TestBed.inject(RSocketService);
   });
@@ -67,5 +58,18 @@ describe('RSocketService', () => {
       expect(ans).toEqual('ServiceTest');
       done();
     })
+  });
+});
+
+describe('RSocketRxjsModule.forRoot', () => {
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [RSocketRxjsModule],
+    });
+  });
+
+  it('shouldn\'t be created', () => {
+    expect(() => TestBed.inject(RSocketService)).toThrowError(/No provider for/);
   });
 });

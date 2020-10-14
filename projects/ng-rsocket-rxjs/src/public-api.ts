@@ -4,7 +4,7 @@
 
 export { RSocketBuilder } from './lib/api/rsocket-factory';
 
-export { RSocketService } from './lib/services/rsocket.service';
+export { RSocketService, RSocketServiceOptions } from './lib/services/rsocket.service';
 
 export { MimeTypes } from './lib/api/rsocket-mime.types';
 

@@ -11,29 +11,30 @@ const log = factory.getLogger("rsocket.RSocketService");
 
 
 export class RSocketServiceOptions {
-  constructor(public readonly config: Partial<RSocketConfig>,
+  constructor(public readonly config: Partial<RSocketConfig<any, any>>,
     public readonly url: string,
     public readonly reconnectTimeout?: number) { }
 }
 
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable()
 export class RSocketService implements OnDestroy {
   private $destroy = new Subject();
   private _socket: ReplaySubject<MessageRoutingRSocket> = new ReplaySubject(1);
 
-  constructor(options: RSocketServiceOptions) {
+  constructor() {
+  }
+
+  public connect(options: RSocketServiceOptions) {
     let builder = new RSocketBuilder();
     if (options.config != undefined) {
       const config = options.config;
 
       if (config.dataMimeType != undefined) {
-        builder = builder.dataMimeTypeDirect(config.dataMimeType);
+        builder = builder.dataMimeType(config.dataMimeType);
       }
       if (config.metadataMimeType != undefined) {
-        builder = builder.metaDatamimeTypeDirect(config.metadataMimeType);
+        builder = builder.metaDataMimeType(config.metadataMimeType);
       }
       if (config.maxLifetime != undefined) {
         builder = builder.maxLifetime(config.maxLifetime);
@@ -49,6 +50,12 @@ export class RSocketService implements OnDestroy {
           builder = builder.honorsLease();
         }
       }
+      if (config.data != undefined) {
+        builder = builder.setupData(config.data);
+      }
+      if (config.metaData != undefined) {
+        builder = builder.setupMetadata(config.metaData);
+      }
     }
     if (options.reconnectTimeout !== undefined) {
       builder = builder.automaticReconnect(options.reconnectTimeout);
@@ -56,10 +63,10 @@ export class RSocketService implements OnDestroy {
       builder = builder.automaticReconnect();
     }
     builder.connectionString(options.url).messageRSocket().pipe(takeUntil(this.$destroy)).subscribe((socket) => {
-      log.debug('Successfully opened socket');
       this._socket.next(socket);
     });
   }
+
   ngOnDestroy(): void {
     this.$destroy.next(1);
   }

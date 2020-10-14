@@ -97,14 +97,12 @@ export class SetupFrameBuilder extends FrameBuilder {
         this.writerIndex = 18; // First 18 bytes are reserved
     }
 
-    public buildFromConfig(config: RSocketConfig): Frame {
+    public buildFromConfig(config: RSocketConfig<any, any>): Frame {
         this.streamId(0);
 
 
-        if (config.setupPayload != undefined) {
-            if (config.setupPayload.hasMetadata()) {
-                this.flagMetadataPresent();
-            }
+        if (config.metaData != undefined) {
+            this.flagMetadataPresent();
         }
         if (config.honorsLease) {
             this.flagHonorsLease();
@@ -119,11 +117,14 @@ export class SetupFrameBuilder extends FrameBuilder {
             this.writerIndex = 2 + config.resumeIdentificationToken.byteLength;
         }
 
-        this.mimeType(config.metadataMimeType);
-        this.mimeType(config.dataMimeType);
-
-        if (config.setupPayload != undefined) {
-            this.payload(config.setupPayload);
+        this.mimeType(config.metadataMimeType.toBuffer());
+        this.mimeType(config.dataMimeType.toBuffer());
+        if (config.data != undefined && config.metaData != undefined) {
+            this.payload(new Payload(config.dataMimeType.mapToBuffer(config.data), config.metadataMimeType.mapToBuffer(config.metaData)));
+        } else if (config.data == undefined && config.metaData != undefined) {
+            this.payload(new Payload(new Uint8Array(0), config.metadataMimeType.mapToBuffer(config.metaData)));
+        } else if (config.data != undefined && config.metaData == undefined) {
+            this.payload(new Payload(config.dataMimeType.mapToBuffer(config.data)));
         }
         return new Frame(new Uint8Array(this.buffer, 0, this.writerIndex));
     }

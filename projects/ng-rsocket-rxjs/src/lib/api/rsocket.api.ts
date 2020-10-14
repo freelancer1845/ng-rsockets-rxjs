@@ -24,7 +24,7 @@ export type RequestFNFHandler = (payload: Payload) => void;
 
 export interface RSocket {
 
-    establish(config: RSocketConfig): void;
+    establish(config: RSocketConfig<any, any>): void;
     close(): void;
     state(): Observable<RSocketState>;
 

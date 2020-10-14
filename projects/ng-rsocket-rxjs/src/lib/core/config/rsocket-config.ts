@@ -1,15 +1,17 @@
+import { MimeTypes } from '../../api/rsocket-mime.types';
 import { Payload } from "../protocol/payload";
 
 
 
-export interface RSocketConfig {
+export interface RSocketConfig<M, D> {
     majorVersion: number;
     minorVersion: number,
-    metadataMimeType: Uint8Array;
-    dataMimeType: Uint8Array;
+    metadataMimeType: MimeTypes<M>;
+    dataMimeType: MimeTypes<D>;
     keepaliveTime: number;
     maxLifetime: number;
     resumeIdentificationToken?: Uint8Array;
     honorsLease: boolean;
-    setupPayload?: Payload;
+    metaData?: M;
+    data?: D;
 }
