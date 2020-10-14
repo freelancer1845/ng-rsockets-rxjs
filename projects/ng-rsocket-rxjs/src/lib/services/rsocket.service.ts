@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { ReplaySubject, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { RSocketBuilder } from '../api/rsocket-factory';
@@ -22,7 +22,7 @@ export class RSocketService implements OnDestroy {
   private $destroy = new Subject();
   private _socket: ReplaySubject<MessageRoutingRSocket> = new ReplaySubject(1);
 
-  constructor() {
+  constructor(private ngZone: NgZone) {
   }
 
   public connect(options: RSocketServiceOptions) {
@@ -72,7 +72,7 @@ export class RSocketService implements OnDestroy {
   }
 
   public route(route: string): FluentRequest<any, any> {
-    return new FluentRequest(this._socket, route);
+    return new FluentRequest(this.ngZone, this._socket, route);
   }
 
 

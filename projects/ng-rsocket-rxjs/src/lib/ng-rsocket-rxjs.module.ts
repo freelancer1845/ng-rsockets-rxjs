@@ -1,4 +1,4 @@
-import { ModuleWithProviders, NgModule } from '@angular/core';
+import { ModuleWithProviders, NgModule, NgZone } from '@angular/core';
 import { RSocketConfig } from './core/config/rsocket-config';
 import { RSocketService } from './services/rsocket.service';
 
@@ -19,18 +19,23 @@ export class RSocketRxjsModule {
 
 
   static forRoot(config: RSocketRxjsModuleConfig): ModuleWithProviders<RSocketRxjsModule> {
-    let s = new RSocketService();
-    s.connect({
-      url: config.url,
-      config: config.rsocketConfig,
-      reconnectTimeout: config.reconnectTimeout
-    });
+
+    const serviceFactory = (zone: NgZone) => {
+      const s = new RSocketService(zone);
+      s.connect({
+        url: config.url,
+        config: config.rsocketConfig,
+        reconnectTimeout: config.reconnectTimeout
+      });
+      return s;
+    }
     return {
       ngModule: RSocketRxjsModule,
       providers: [
         {
           provide: RSocketService,
-          useValue: s
+          useFactory: serviceFactory,
+          deps: [NgZone],
         }
       ]
     }
