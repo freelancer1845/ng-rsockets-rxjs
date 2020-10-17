@@ -111,7 +111,7 @@ export class RSocketBuilder {
     }
 
     private buildTransport(): Transport {
-        if (this._connectionString.match("^ws://.*$").length > 0) {
+        if (this._connectionString.match("^(ws:)|(wss:)\/\/.*$") != null) {
             const transport = new WebsocketTransport(this._connectionString);
             return transport;
         } else {
