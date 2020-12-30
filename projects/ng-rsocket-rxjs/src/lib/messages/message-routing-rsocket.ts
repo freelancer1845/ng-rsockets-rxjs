@@ -54,7 +54,6 @@ export class MessageRoutingRSocket {
         authentication?: Authentication): Observable<I> {
         return defer(() => {
             const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication);
-
             const _payload = new Payload(outgoingMimeType.mapToBuffer(payload), MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.mapToBuffer(metaData));
             return this.rsocket.requestResponse(_payload).pipe(map(ans => {
                 if (ans.hasMetadata()) {

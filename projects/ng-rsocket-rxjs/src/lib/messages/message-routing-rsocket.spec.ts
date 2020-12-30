@@ -204,6 +204,12 @@ describe("request_patterns", () => {
             done();
         });
     });
+    it("Accepts application/octet-stream mime type", done => {
+        socket.requestResponse('/binary/request-response', new TextEncoder().encode("Hello World").buffer, MimeTypes.APPLICATION_OCTET_STREAM, MimeTypes.APPLICATION_OCTET_STREAM).subscribe(ans => {
+            expect(new TextDecoder().decode(ans)).toEqual('Hello World To You Too!');
+            done();
+        });
+    })
     afterAll(() => {
         socket.rsocket.close();
     })

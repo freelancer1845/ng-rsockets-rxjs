@@ -74,6 +74,7 @@ public class TestController {
         requester.rsocket().dispose();
     }
 
+
     @Data
     public static final class Request {
         String topic;
