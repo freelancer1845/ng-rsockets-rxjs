@@ -270,6 +270,8 @@ function mapToTypeByMimeType<T>(type: MimeTypes<T>, buffer: Uint8Array): T {
         return deserializeAuthentication(buffer) as unknown as T;
     } else if (type.equals(MimeTypes.MESSAGE_X_RSOCKET_ROUTING)) {
         return deserializeMessageRoute(buffer) as unknown as T;
+    } else {
+        return buffer as unknown as T;
     }
 }
 
@@ -284,6 +286,8 @@ function mapToBufferByMimeType<T>(type: MimeTypes<T>, data: T): Uint8Array {
         return serializeAuthentication(data as unknown as Authentication);
     } else if (type.equals(MimeTypes.MESSAGE_X_RSOCKET_ROUTING)) {
         return serializeMessageRoute(data as unknown as string);
+    } else {
+        return data as unknown as Uint8Array;
     }
 }
 
