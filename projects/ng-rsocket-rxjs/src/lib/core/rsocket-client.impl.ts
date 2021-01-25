@@ -45,7 +45,7 @@ export class RSocketClient implements RSocket {
         ).subscribe({
             next: n => this._incoming.next(n),
             error: err => {
-                protocolLog.error("Websocket signaled error: " + JSON.stringify(err));
+                protocolLog.debug("Websocket signaled error: " + JSON.stringify(err));
                 this._state.next(RSocketState.Error);
                 this._state.next(RSocketState.Disconnected);
             },
