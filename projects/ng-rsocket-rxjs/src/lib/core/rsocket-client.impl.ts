@@ -1,5 +1,6 @@
 import { BehaviorSubject, interval, merge, Notification, Observable, race, Subject, throwError } from "rxjs";
 import { delayWhen, dematerialize, filter, flatMap, map, materialize, repeatWhen, skipWhile, take, takeUntil, takeWhile, tap, timeout } from "rxjs/operators";
+import { MimeTypeRegistry } from "../api/rsocket-mime.types";
 import { BackpressureStrategy, RequestFNFHandler, RequestResponseHandler, RequestStreamHandler, RSocket, RSocketState } from '../api/rsocket.api';
 import { arrayBufferToUtf8String } from '../utlities/conversions';
 import { factory } from "./config-log4j";
@@ -30,7 +31,10 @@ export class RSocketClient implements RSocket {
 
     private $destroy = new Subject();
     private _closedByUser = false;
-    constructor(private readonly transport: Transport) {
+    constructor(
+        private readonly transport: Transport,
+        public readonly mimeTypeRegistry: MimeTypeRegistry
+    ) {
         this.incomingHandlerSetup();
     }
     state(): Observable<RSocketState> {
@@ -57,7 +61,7 @@ export class RSocketClient implements RSocket {
                 this._state.next(RSocketState.Disconnected);
             }
         });
-        const setupFrame = FrameBuilder.setup().buildFromConfig(config);
+        const setupFrame = FrameBuilder.setup().buildFromConfig(config, this.mimeTypeRegistry);
         if (config.honorsLease == false) {
             protocolLog.debug('Sending Setup frame without honoring lease...');
             this.transport.send(setupFrame);

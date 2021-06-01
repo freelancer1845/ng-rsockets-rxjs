@@ -6,8 +6,9 @@ import { RSocketClient } from '../core/rsocket-client.impl';
 import { Transport } from '../core/transport/transport.api';
 import { WebsocketTransport } from '../core/transport/websocket-transport.impl';
 import { MessageRoutingRSocket } from '../messages/message-routing-rsocket';
-import { MimeTypes } from './rsocket-mime.types';
 import { RSocketState } from './rsocket.api';
+import { MimeType, MimeTypeRegistry } from './rsocket-mime.types';
+
 
 export class RSocketBuilder {
 
@@ -17,13 +18,19 @@ export class RSocketBuilder {
         honorsLease: false,
         keepaliveTime: 30000,
         maxLifetime: 100000,
-        dataMimeType: MimeTypes.APPLICATION_JSON,
-        metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
+        dataMimeType: MimeType.APPLICATION_JSON,
+        metadataMimeType: MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
     }
 
     private _connectionString: string;
     private _automaticReconnect = false;
     private _reconnectWaitTime = 5000;
+    private _mimeTypeRegistry = MimeTypeRegistry.defaultRegistry();
+
+    public configureMimeTypeRegistry(configurer: (registry: any) => void) {
+        configurer(this._mimeTypeRegistry);
+        return this;
+    }
 
     public keepaliveTime(time: number) {
         this._config.keepaliveTime = time;
@@ -43,13 +50,13 @@ export class RSocketBuilder {
         return this;
     }
 
-    public dataMimeType(type: MimeTypes<any>) {
+    public dataMimeType(type: MimeType<any>) {
         this._config.dataMimeType = type;
         return this;
     }
 
 
-    public metaDataMimeType(type: MimeTypes<any>) {
+    public metaDataMimeType(type: MimeType<any>) {
         this._config.metadataMimeType = type;
         return this;
     }
@@ -77,10 +84,10 @@ export class RSocketBuilder {
     }
 
     public messageRSocket(): Observable<MessageRoutingRSocket> {
-        if (this._config.metadataMimeType.equals(MimeTypes.MESSAGE_X_RSOCKET_AUTHENTICATION)) {
-            this._config.metadataMimeType = MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA;
+        if (this._config.metadataMimeType.equals(MimeType.MESSAGE_X_RSOCKET_AUTHENTICATION)) {
+            this._config.metadataMimeType = MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA;
             this._config.metaData = [{
-                type: MimeTypes.MESSAGE_X_RSOCKET_AUTHENTICATION,
+                type: MimeType.MESSAGE_X_RSOCKET_AUTHENTICATION,
                 data: this._config.metaData
             }]
         }
@@ -93,7 +100,7 @@ export class RSocketBuilder {
     private buildClient(): Observable<RSocketClient> {
         const obs: Observable<RSocketClient> = new Observable<RSocketClient>(emitter => {
             const transport = this.buildTransport();
-            const client = new RSocketClient(transport);
+            const client = new RSocketClient(transport, this._mimeTypeRegistry);
             emitter.next(client);
             client.establish(this._config);
             const stateSub = client.state().pipe(filter(s => s == RSocketState.Error)).subscribe(s => emitter.error(new Error("RSocket failed")));
@@ -123,8 +130,9 @@ export class RSocketBuilder {
 }
 
 
-export class RSocketFactory {
+class RSocketFactory {
 
 
 
 }
+

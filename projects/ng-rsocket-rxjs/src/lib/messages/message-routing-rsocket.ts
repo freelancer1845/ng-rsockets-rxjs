@@ -1,6 +1,6 @@
 import { defer, Observable, of } from "rxjs";
 import { map } from "rxjs/operators";
-import { Authentication, CompositeMetaData, MimeTypes } from '../api/rsocket-mime.types';
+import { Authentication, CompositeMetaData, MimeType } from '../api/rsocket-mime.types';
 import { BackpressureStrategy, RequestResponseHandler, RequestStreamHandler, RSocket } from '../api/rsocket.api';
 import { factory } from '../core/config-log4j';
 import { Payload } from '../core/protocol/payload';
@@ -17,8 +17,8 @@ export class RequestResponseMapping implements RouteMapping {
     constructor(
         public readonly route: string,
         public readonly handler: (payload: any) => Observable<any> | any,
-        public readonly incomingMimeType = MimeTypes.APPLICATION_JSON,
-        public readonly outgoingMimeType = MimeTypes.APPLICATION_JSON,
+        public readonly incomingMimeType = MimeType.APPLICATION_JSON,
+        public readonly outgoingMimeType = MimeType.APPLICATION_JSON,
     ) { }
 }
 
@@ -26,8 +26,8 @@ export class RequestStreamMapping implements RouteMapping {
     constructor(
         public readonly route: string,
         public readonly handler: (payload: any) => Observable<any> | any,
-        public readonly incomingMimeType = MimeTypes.APPLICATION_JSON,
-        public readonly outgoingMimeType = MimeTypes.APPLICATION_JSON,
+        public readonly incomingMimeType = MimeType.APPLICATION_JSON,
+        public readonly outgoingMimeType = MimeType.APPLICATION_JSON,
         public readonly backpressureStrategy: BackpressureStrategy = BackpressureStrategy.BufferDelay,
     ) { }
 }
@@ -49,32 +49,38 @@ export class MessageRoutingRSocket {
     public requestResponse<O, I>(
         route: string,
         payload?: O,
-        outgoingMimeType: MimeTypes<O> = MimeTypes.APPLICATION_JSON,
-        incomingMimeType: MimeTypes<I> = MimeTypes.APPLICATION_JSON,
+        outgoingMimeType: MimeType<O> = MimeType.APPLICATION_JSON,
+        incomingMimeType: MimeType<I> = MimeType.APPLICATION_JSON,
         authentication?: Authentication): Observable<I> {
         return defer(() => {
-            const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication);
-            const _payload = new Payload(outgoingMimeType.mapToBuffer(payload), MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.mapToBuffer(metaData));
+            const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication, outgoingMimeType);
+            const dataBuffer = outgoingMimeType.coder.encoder(payload, this.rsocket.mimeTypeRegistry);
+            const metadataBuffer = MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.coder.encoder(metaData, this.rsocket.mimeTypeRegistry);
+
+            const _payload = new Payload(dataBuffer, metadataBuffer);
             return this.rsocket.requestResponse(_payload).pipe(map(ans => {
                 if (ans.hasMetadata()) {
-                    const composite = MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.mapFromBuffer(ans.metadata);
+                    const composite = MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.coder.decoder(ans.metadata, this.rsocket.mimeTypeRegistry);
                 }
-                return incomingMimeType.mapFromBuffer(ans.data);
+                return incomingMimeType.coder.decoder(ans.data, this.rsocket.mimeTypeRegistry);
             }));
         });
     }
 
     public requestStream<O, I>(
         route: string, payload?: O,
-        outgoingMimeType: MimeTypes<O> = MimeTypes.APPLICATION_JSON,
-        incomingMimeType: MimeTypes<I> = MimeTypes.APPLICATION_JSON,
+        outgoingMimeType: MimeType<O> = MimeType.APPLICATION_JSON,
+        incomingMimeType: MimeType<I> = MimeType.APPLICATION_JSON,
         authentication?: Authentication,
         requester?: Observable<number>): Observable<I> {
         return defer(() => {
-            const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication);
-            let _payload = new Payload(outgoingMimeType.mapToBuffer(payload), MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.mapToBuffer(metaData));
+            const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication, outgoingMimeType);
+            const dataBuffer = outgoingMimeType.coder.encoder(payload, this.rsocket.mimeTypeRegistry);
+            const metadataBuffer = MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.coder.encoder(metaData, this.rsocket.mimeTypeRegistry);
+
+            const _payload = new Payload(dataBuffer, metadataBuffer);
             return this.rsocket.requestStream(_payload, requester).pipe(map(ans => {
-                return incomingMimeType.mapFromBuffer(ans.data);
+                return incomingMimeType.coder.decoder(ans.data, this.rsocket.mimeTypeRegistry);
             }));
         });
     }
@@ -82,11 +88,14 @@ export class MessageRoutingRSocket {
     public requestFNF<O>(
         route: string,
         payload?: O,
-        payloadMimeType: MimeTypes<O> = MimeTypes.APPLICATION_JSON,
+        payloadMimeType: MimeType<O> = MimeType.APPLICATION_JSON,
         authentication?: Authentication
     ): void {
-        const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication);
-        const _payload = new Payload(payloadMimeType.mapToBuffer(payload), MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.mapToBuffer(metaData));
+        const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication, payloadMimeType);
+        const dataBuffer = payloadMimeType.coder.encoder(payload, this.rsocket.mimeTypeRegistry);
+        const metadataBuffer = MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.coder.encoder(metaData, this.rsocket.mimeTypeRegistry);
+
+        const _payload = new Payload(dataBuffer, metadataBuffer);
         this.rsocket.requestFNF(_payload);
 
     }
@@ -94,8 +103,8 @@ export class MessageRoutingRSocket {
     public addRequestResponseHandler(
         topic: string,
         handler: (payload: any) => Observable<any> | any,
-        incomingMimeType = MimeTypes.APPLICATION_JSON,
-        outgoingMimeType = MimeTypes.APPLICATION_JSON,
+        incomingMimeType = MimeType.APPLICATION_JSON,
+        outgoingMimeType = MimeType.APPLICATION_JSON,
     ): void {
         this.addMapping(new RequestResponseMapping(
             topic,
@@ -105,16 +114,22 @@ export class MessageRoutingRSocket {
         ), this._requestResponseMappers);
     }
 
-    private standardMetadataConstructor(route: string, auth?: Authentication): CompositeMetaData[] {
+    private standardMetadataConstructor(route: string, auth?: Authentication, dataMimeTypes?: MimeType): CompositeMetaData[] {
         const metaData: CompositeMetaData[] = [];
         metaData.push({
-            type: MimeTypes.MESSAGE_X_RSOCKET_ROUTING,
+            type: MimeType.MESSAGE_X_RSOCKET_ROUTING,
             data: route
         });
         if (auth != undefined) {
             metaData.push({
-                type: MimeTypes.MESSAGE_X_RSOCKET_AUTHENTICATION,
+                type: MimeType.MESSAGE_X_RSOCKET_AUTHENTICATION,
                 data: auth
+            })
+        }
+        if (dataMimeTypes != undefined) {
+            metaData.push({
+                type: MimeType.MESSAGE_X_RSOCKET_MIME_TYPE,
+                data: dataMimeTypes
             })
         }
         return metaData;
@@ -124,7 +139,7 @@ export class MessageRoutingRSocket {
         return defer(() => {
             const mapper = this.getMapping(this.getTopic(payload), this._requestResponseMappers);
             log.debug("Executing Request Response Handler for: " + mapper.route);
-            const _payload = mapper.incomingMimeType.mapFromBuffer(payload.data);
+            const _payload = mapper.incomingMimeType.coder.decoder(payload.data, this.rsocket.mimeTypeRegistry);
 
             const result = mapper.handler(_payload);
             let obs: Observable<any>;
@@ -134,7 +149,7 @@ export class MessageRoutingRSocket {
                 obs = of(result);
             }
             return obs.pipe(map(answer => {
-                return new Payload(mapper.outgoingMimeType.mapToBuffer(answer));
+                return new Payload(mapper.outgoingMimeType.coder.encoder(answer, this.rsocket.mimeTypeRegistry));
             }));
         });
     }
@@ -142,8 +157,8 @@ export class MessageRoutingRSocket {
     public addRequestStreamHandler(
         topic: string,
         handler: (payload: any) => Observable<any> | any,
-        incomingMimeType = MimeTypes.APPLICATION_JSON,
-        outgoingMimeType = MimeTypes.APPLICATION_JSON,
+        incomingMimeType = MimeType.APPLICATION_JSON,
+        outgoingMimeType = MimeType.APPLICATION_JSON,
         backpressureStrategy: BackpressureStrategy = BackpressureStrategy.BufferDelay,
     ): void {
         this.addMapping(new RequestStreamMapping(
@@ -159,7 +174,7 @@ export class MessageRoutingRSocket {
         const mapper = this.getMapping(this.getTopic(payload), this._requestStreamMappers);
         const stream = defer(() => {
             log.debug("Executing Request Stream Handler for: " + mapper.route);
-            const _payload = mapper.incomingMimeType.mapFromBuffer(payload.data);
+            const _payload = mapper.incomingMimeType.coder.decoder(payload.data, this.rsocket.mimeTypeRegistry);
 
             const result = mapper.handler(_payload);
             let obs: Observable<any>;
@@ -169,7 +184,7 @@ export class MessageRoutingRSocket {
                 obs = of(result);
             }
             return obs.pipe(map(answer => {
-                return new Payload(mapper.outgoingMimeType.mapToBuffer(answer));
+                return new Payload(mapper.outgoingMimeType.coder.encoder(answer, this.rsocket.mimeTypeRegistry));
             }));
         });
         return {
@@ -188,7 +203,7 @@ export class MessageRoutingRSocket {
     }
 
     private getTopic(payload: Payload) {
-        return MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.mapFromBuffer(payload.metadata).filter(c => c.type.equals(MimeTypes.MESSAGE_X_RSOCKET_ROUTING))[0].data;
+        return MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.coder.decoder(payload.metadata, this.rsocket.mimeTypeRegistry).filter(c => c.type.equals(MimeType.MESSAGE_X_RSOCKET_ROUTING))[0].data;
     }
 
     private getMapping<T extends RouteMapping>(route: string, target: T[]) {

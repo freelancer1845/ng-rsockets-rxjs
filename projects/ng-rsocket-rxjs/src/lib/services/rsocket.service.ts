@@ -2,7 +2,7 @@ import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { ReplaySubject, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { RSocketBuilder } from '../api/rsocket-factory';
-import { MimeTypes } from '../api/rsocket-mime.types';
+import { MimeType } from '../api/rsocket-mime.types';
 import { factory } from '../core/config-log4j';
 import { RSocketConfig } from '../core/config/rsocket-config';
 import { MessageRoutingRSocket } from '../messages/message-routing-rsocket';
@@ -23,8 +23,8 @@ export class RSocketService implements OnDestroy {
   private $destroy = new Subject();
   private _socket: ReplaySubject<MessageRoutingRSocket> = new ReplaySubject(1);
 
-  private _defaultIncomingMimeType = MimeTypes.APPLICATION_JSON;
-  private _defaultOutgoingMimeType = MimeTypes.APPLICATION_JSON;
+  private _defaultIncomingMimeType = MimeType.APPLICATION_JSON;
+  private _defaultOutgoingMimeType = MimeType.APPLICATION_JSON;
 
   constructor(private ngZone: NgZone) {
   }

@@ -10,7 +10,7 @@ Basic library implementing RSockets RC 1 (Version 1.0).
 * Request Response - Both directions
 * Request Stream - Both direction + Backpressure support
 * Websocket Transport
-* RSocket Security (Only tested 'simple') (tested with spring-boot 2.3.4)
+* RSocket Security (Only tested 'simple') (tested with spring-boot 2.5.0)
 
 ### Additional features
 
@@ -18,6 +18,7 @@ Basic library implementing RSockets RC 1 (Version 1.0).
   * application/json using JSON.stringify/parse
   * application/octet-stream giving and using UInt8Arrays
   * 'MESSAGE_X_RSOCKET_ROUTING' to  work with spring-boot rsocket MessageMapping etc.
+  * 'message/x.rsocket.mime-type.v0' to work with spring-boot mime type encoders
 * Automatic reconnect when using RSocketBuilder
 * A service that can be used in your Angular Project to ease establishing of the connection (works well with Spring Boot RSocket)
 

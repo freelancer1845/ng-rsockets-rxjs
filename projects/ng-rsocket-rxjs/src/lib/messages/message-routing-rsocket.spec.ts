@@ -1,9 +1,9 @@
 import { async } from '@angular/core/testing';
 import { RSocket } from 'dist/ng-rsocket-rxjs/lib/api/rsocket.api';
-import { RSocketClient } from "ng-rsocket-rxjs";
+import { RSocketClient, MimeTypeRegistry } from "ng-rsocket-rxjs";
 import { MessageRoutingRSocket } from "ng-rsocket-rxjs";
 import { WebsocketTransport } from "ng-rsocket-rxjs"
-import { MimeTypes } from "ng-rsocket-rxjs";
+import { MimeType } from "ng-rsocket-rxjs";
 import { BehaviorSubject, range, ReplaySubject, Subject, timer } from "rxjs";
 import { flatMap, reduce } from 'rxjs/operators';
 import { arrayBufferToUtf8String } from '../utlities/conversions';
@@ -16,11 +16,11 @@ describe("request_patterns", () => {
     beforeAll(() => {
 
         const transport = new WebsocketTransport("ws://localhost:8080/rsocket");
-        const client = new RSocketClient(transport);
+        const client = new RSocketClient(transport, MimeTypeRegistry.defaultRegistry());
         socket = new MessageRoutingRSocket(client);
         client.establish({
-            dataMimeType: MimeTypes.APPLICATION_JSON,
-            metadataMimeType: MimeTypes.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
+            dataMimeType: MimeType.APPLICATION_JSON,
+            metadataMimeType: MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
             honorsLease: false,
             keepaliveTime: 30000,
             majorVersion: 1,
@@ -205,7 +205,7 @@ describe("request_patterns", () => {
         });
     });
     it("Accepts application/octet-stream mime type", done => {
-        socket.requestResponse('/binary/request-response', new TextEncoder().encode("Hello World").buffer, MimeTypes.APPLICATION_OCTET_STREAM, MimeTypes.APPLICATION_OCTET_STREAM).subscribe(ans => {
+        socket.requestResponse('/binary/request-response', new TextEncoder().encode("Hello World").buffer, MimeType.APPLICATION_OCTET_STREAM, MimeType.APPLICATION_OCTET_STREAM).subscribe(ans => {
             expect(new TextDecoder().decode(ans)).toEqual('Hello World To You Too!');
             done();
         });

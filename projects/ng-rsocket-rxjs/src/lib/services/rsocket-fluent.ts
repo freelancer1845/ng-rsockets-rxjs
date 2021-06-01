@@ -1,7 +1,7 @@
 import { NgZone } from '@angular/core';
 import { Observable, OperatorFunction } from 'rxjs';
 import { flatMap, take } from 'rxjs/operators';
-import { Authentication, MimeTypes } from '../api/rsocket-mime.types';
+import { Authentication, MimeType } from '../api/rsocket-mime.types';
 import { MessageRoutingRSocket } from '../messages/message-routing-rsocket';
 
 function zoneFix<T>(zone: NgZone): OperatorFunction<T, T> {
@@ -22,8 +22,8 @@ export class FluentRequest<O, I> {
         private socketHolder: Observable<MessageRoutingRSocket>,
         private _route: string,
         private _data?: any,
-        private _outgoingMimeType?: MimeTypes<O>,
-        private _incomingMimeType?: MimeTypes<I>,
+        private _outgoingMimeType?: MimeType<O>,
+        private _incomingMimeType?: MimeType<I>,
         private _authentication?: Authentication,
         private _requester?: Observable<number>,
     ) {
@@ -39,11 +39,11 @@ export class FluentRequest<O, I> {
         return new FluentRequest(this._zone, this.socketHolder, this._route, this._data, this._outgoingMimeType, this._incomingMimeType, this._authentication, this._requester);
     }
 
-    public requestMimetype<L>(type: MimeTypes<L>): FluentRequest<L, I> {
+    public requestMimetype<L>(type: MimeType<L>): FluentRequest<L, I> {
         return new FluentRequest(this._zone, this.socketHolder, this._route, this._data, type, this._incomingMimeType, this._authentication, this._requester);
     }
 
-    public answerMimetype<L>(type: MimeTypes<L>): FluentRequest<O, L> {
+    public answerMimetype<L>(type: MimeType<L>): FluentRequest<O, L> {
         return new FluentRequest(this._zone, this.socketHolder, this._route, this._data, this._outgoingMimeType, type, this._authentication, this._requester);
     }
 

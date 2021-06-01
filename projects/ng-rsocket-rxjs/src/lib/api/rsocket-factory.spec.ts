@@ -3,7 +3,7 @@ import { RSocket } from 'dist/ng-rsocket-rxjs/lib/api/rsocket.api';
 import { RSocketClient } from "ng-rsocket-rxjs";
 import { MessageRoutingRSocket } from "ng-rsocket-rxjs";
 import { WebsocketTransport } from "ng-rsocket-rxjs"
-import { MimeTypes } from "ng-rsocket-rxjs";
+import { MimeType } from "ng-rsocket-rxjs";
 import { range, timer } from "rxjs";
 import { flatMap, reduce } from 'rxjs/operators';
 import { RSocketBuilder } from './rsocket-factory';

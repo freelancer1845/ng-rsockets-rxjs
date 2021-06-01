@@ -1,3 +1,4 @@
+import { MimeTypeRegistry } from '../../api/rsocket-mime.types';
 import { stringToUtf8ArrayBuffer } from '../../utlities/conversions';
 import { RSocketConfig } from '../config/rsocket-config';
 import { ErrorCode, Frame, FrameType } from "./frame";
@@ -97,7 +98,7 @@ export class SetupFrameBuilder extends FrameBuilder {
         this.writerIndex = 18; // First 18 bytes are reserved
     }
 
-    public buildFromConfig(config: RSocketConfig<any, any>): Frame {
+    public buildFromConfig(config: RSocketConfig<any, any>, mimeTypeRegistry: MimeTypeRegistry): Frame {
         this.streamId(0);
 
 
@@ -120,11 +121,11 @@ export class SetupFrameBuilder extends FrameBuilder {
         this.mimeType(config.metadataMimeType.toBuffer());
         this.mimeType(config.dataMimeType.toBuffer());
         if (config.data != undefined && config.metaData != undefined) {
-            this.payload(new Payload(config.dataMimeType.mapToBuffer(config.data), config.metadataMimeType.mapToBuffer(config.metaData)));
+            this.payload(new Payload(config.dataMimeType.coder.encoder(config.data, mimeTypeRegistry), config.metadataMimeType.coder.encoder(config.metaData, mimeTypeRegistry)));
         } else if (config.data == undefined && config.metaData != undefined) {
-            this.payload(new Payload(new Uint8Array(0), config.metadataMimeType.mapToBuffer(config.metaData)));
+            this.payload(new Payload(new Uint8Array(0), config.metadataMimeType.coder.encoder(config.metaData, mimeTypeRegistry)));
         } else if (config.data != undefined && config.metaData == undefined) {
-            this.payload(new Payload(config.dataMimeType.mapToBuffer(config.data)));
+            this.payload(new Payload(config.dataMimeType.coder.encoder(config.data, mimeTypeRegistry)));
         }
         return new Frame(new Uint8Array(this.buffer, 0, this.writerIndex));
     }

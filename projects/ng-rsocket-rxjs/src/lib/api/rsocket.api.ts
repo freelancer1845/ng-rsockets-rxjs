@@ -1,6 +1,7 @@
 import { Observable, Subject } from "rxjs";
 import { RSocketConfig } from '../core/config/rsocket-config';
 import { Payload } from '../core/protocol/payload';
+import { MimeTypeRegistry } from "./rsocket-mime.types";
 
 
 export enum RSocketState {
@@ -35,4 +36,6 @@ export interface RSocket {
     setRequestResponseHandler(handler: RequestResponseHandler);
     setRequestStreamHandler(handler: RequestStreamHandler);
     setRequestFNFHandler(handler: RequestFNFHandler);
+
+    readonly mimeTypeRegistry: MimeTypeRegistry;
 }
