@@ -24,99 +24,40 @@ export interface MimeTypeCoding<T> {
     decoder: (buffer: Uint8Array, registry: MimeTypeRegistry) => T;
 }
 
-const NOOP_MIME_TYPE_CODER: MimeTypeCoding<Uint8Array> = {
-    encoder: a => a,
-    decoder: a => a,
+export const NOOP_MIME_TYPE_CODER: MimeTypeCoding<Uint8Array> = {
+    encoder: noopCoding,
+    decoder: noopCoding,
 }
 
-const COMPOSITE_METADATA_CODER: MimeTypeCoding<CompositeMetaData[]> = {
+export function noopCoding(a) { return a; }
+
+export const COMPOSITE_METADATA_CODER: MimeTypeCoding<CompositeMetaData[]> = {
     encoder: serializeCompositeMetadata,
     decoder: deserializeCompositeMetadata
 }
 
-const X_RSOCKET_AUTHENTICATION_CODER: MimeTypeCoding<Authentication> = {
+export const X_RSOCKET_AUTHENTICATION_CODER: MimeTypeCoding<Authentication> = {
     encoder: serializeAuthentication,
     decoder: deserializeAuthentication
 }
 
-const APPLICATION_JSON_CODER: MimeTypeCoding<any> = {
-    encoder: obj => stringToUtf8ArrayBuffer(JSON.stringify(obj)),
-    decoder: buffer => JSON.parse(arrayBufferToUtf8String(buffer))
+export const APPLICATION_JSON_CODER: MimeTypeCoding<any> = {
+    encoder: jsonEncoder,
+    decoder: jsonDecoder
 }
-const X_RSOCKET_ROUTING_CODER: MimeTypeCoding<String> = {
+export const X_RSOCKET_ROUTING_CODER: MimeTypeCoding<String> = {
     encoder: serializeMessageRoute,
     decoder: deserializeMessageRoute
 }
 
-const X_RSOCKET_MIME_TYPE_CODER: MimeTypeCoding<MimeType<any>> = {
-    decoder: (buffer, registry) => {
-        const mimeIdOrLength = buffer[0];
-        if ((mimeIdOrLength >> 7 & 0x1) == 1) {
-            const wellKnownId = mimeIdOrLength & 0x7F;
-            return registry.getByWellKnown(wellKnownId);
-        } else {
-            const mimeTypeName = arrayBufferToUtf8String(buffer.slice(1, 1 + mimeIdOrLength));
-            return registry.getByName(mimeTypeName);
-        }
-    },
-    encoder: (obj, registry) => {
-        if (obj.isWellKnown == true) {
-            let buf = new Uint8Array(1);
-            buf[0] = obj.wellKnownId | (1 << 7);
-            return buf;
-        } else {
-            let mimeTypeBuffer = stringToUtf8ArrayBuffer(obj.name);
-            let buf = new Uint8Array(mimeTypeBuffer.length + 1);
-            buf[0] = mimeTypeBuffer.length;
-            buf.set(mimeTypeBuffer, 1);
-            return buf;
-        }
-    }
+export const X_RSOCKET_MIME_TYPE_CODER: MimeTypeCoding<MimeType<any>> = {
+    decoder: messageMimeTypeDecoder,
+    encoder: messageMimeTypeEncoder
 }
 
-const X_RSOCKET_ACCEPT_MIME_TYPES_CODER: MimeTypeCoding<MimeType<any>[]> = {
-    decoder: (buffer, registry) => {
-        let idx = 0;
-        let types: MimeType<any>[] = [];
-        while (idx < buffer.length) {
-            const mimeIdOrLength = buffer[0];
-            if ((mimeIdOrLength >> 7 & 0x1) == 1) {
-                idx += 1;
-                const wellKnownId = mimeIdOrLength & 0x7F;
-                types.push(registry.getByWellKnown(wellKnownId));
-            } else {
-                idx += 1 + mimeIdOrLength;
-                const mimeTypeName = arrayBufferToUtf8String(buffer.slice(1, 1 + mimeIdOrLength));
-                types.push(registry.getByName(mimeTypeName));
-            }
-
-        }
-        return types;
-    },
-    encoder: (objs, registry) => {
-        let buffers: Uint8Array[] = [];
-        for (let obj of objs) {
-            if (obj.isWellKnown == true) {
-                let buf = new Uint8Array(1);
-                buf[0] = obj.wellKnownId | (1 << 7);
-                buffers.push(buf);
-            } else {
-                let mimeTypeBuffer = stringToUtf8ArrayBuffer(obj.name);
-                let buf = new Uint8Array(mimeTypeBuffer.length + 1);
-                buf[0] = mimeTypeBuffer.length;
-                buf.set(mimeTypeBuffer, 1);
-                buffers.push(buf);
-            }
-        }
-        let finalSize = buffers.reduce((acc, next) => acc + next.length, 0);
-        let buffer = new Uint8Array(finalSize);
-        let idx = 0;
-        for (let buf of buffers) {
-            buffer.set(buf, idx);
-            idx += buf.length;
-        }
-        return buffer;
-    }
+export const X_RSOCKET_ACCEPT_MIME_TYPES_CODER: MimeTypeCoding<MimeType<any>[]> = {
+    decoder: messageAcceptMimeTypeDecoder,
+    encoder: messageAcceptMimeTypeEncoder
 }
 
 
@@ -225,7 +166,7 @@ export class MimeTypeRegistry {
 
 
 
-function deserializeCompositeMetadata(buffer: Uint8Array, registry: MimeTypeRegistry): CompositeMetaData[] {
+export function deserializeCompositeMetadata(buffer: Uint8Array, registry: MimeTypeRegistry): CompositeMetaData[] {
     const view = new DataView(buffer.buffer, buffer.byteOffset);
     let idx = 0;
     const metadataPayloads: CompositeMetaData[] = [];
@@ -261,7 +202,7 @@ interface CompositeMetadataPart {
     data: Uint8Array;
 }
 
-function serializeCompositeMetadata(data: CompositeMetaData[], registry: MimeTypeRegistry) {
+export function serializeCompositeMetadata(data: CompositeMetaData[], registry: MimeTypeRegistry) {
 
     const metadataParts: CompositeMetadataPart[] = [];
 
@@ -311,7 +252,7 @@ function serializeCompositeMetadata(data: CompositeMetaData[], registry: MimeTyp
 
 
 
-function deserializeAuthentication(buffer: Uint8Array): Authentication {
+export function deserializeAuthentication(buffer: Uint8Array): Authentication {
     const view = new DataView(buffer.buffer, buffer.byteOffset);
     let idx = 0;
     const authIdOrLength = view.getUint8(idx++);
@@ -344,7 +285,7 @@ function deserializeAuthentication(buffer: Uint8Array): Authentication {
     return authentication;
 }
 
-function serializeAuthentication(authentication: Authentication): Uint8Array {
+export function serializeAuthentication(authentication: Authentication): Uint8Array {
 
     let usernameBuffer: Uint8Array;
     let passwordBuffer: Uint8Array;
@@ -391,15 +332,92 @@ function serializeAuthentication(authentication: Authentication): Uint8Array {
     return uint8View;
 }
 
-function serializeMessageRoute(route: string): Uint8Array {
+export function serializeMessageRoute(route: string): Uint8Array {
     return stringToUtf8ArrayBuffer(String.fromCharCode(route.length) + route);
 }
 
-function deserializeMessageRoute(data: Uint8Array): string {
+export function deserializeMessageRoute(data: Uint8Array): string {
     const routeLength = data[0];
     return arrayBufferToUtf8String(data.slice(1, 1 + routeLength));
 }
 
 
+export function jsonEncoder(obj: any) {
+    return stringToUtf8ArrayBuffer(JSON.stringify(obj));
+}
+
+export function jsonDecoder(buffer: Uint8Array) {
+    return JSON.parse(arrayBufferToUtf8String(buffer));
+}
+
+
+export function messageMimeTypeEncoder(obj: MimeType<any>, registry: MimeTypeRegistry) {
+    if (obj.isWellKnown == true) {
+        let buf = new Uint8Array(1);
+        buf[0] = obj.wellKnownId | (1 << 7);
+        return buf;
+    } else {
+        let mimeTypeBuffer = stringToUtf8ArrayBuffer(obj.name);
+        let buf = new Uint8Array(mimeTypeBuffer.length + 1);
+        buf[0] = mimeTypeBuffer.length;
+        buf.set(mimeTypeBuffer, 1);
+        return buf;
+    }
+}
+
+export function messageMimeTypeDecoder(buffer: Uint8Array, registry: MimeTypeRegistry) {
+    const mimeIdOrLength = buffer[0];
+    if ((mimeIdOrLength >> 7 & 0x1) == 1) {
+        const wellKnownId = mimeIdOrLength & 0x7F;
+        return registry.getByWellKnown(wellKnownId);
+    } else {
+        const mimeTypeName = arrayBufferToUtf8String(buffer.slice(1, 1 + mimeIdOrLength));
+        return registry.getByName(mimeTypeName);
+    }
+}
+
+export function messageAcceptMimeTypeEncoder(objs: MimeType<any>[], registry: MimeTypeRegistry) {
+    let buffers: Uint8Array[] = [];
+    for (let obj of objs) {
+        if (obj.isWellKnown == true) {
+            let buf = new Uint8Array(1);
+            buf[0] = obj.wellKnownId | (1 << 7);
+            buffers.push(buf);
+        } else {
+            let mimeTypeBuffer = stringToUtf8ArrayBuffer(obj.name);
+            let buf = new Uint8Array(mimeTypeBuffer.length + 1);
+            buf[0] = mimeTypeBuffer.length;
+            buf.set(mimeTypeBuffer, 1);
+            buffers.push(buf);
+        }
+    }
+    let finalSize = buffers.reduce((acc, next) => acc + next.length, 0);
+    let buffer = new Uint8Array(finalSize);
+    let idx = 0;
+    for (let buf of buffers) {
+        buffer.set(buf, idx);
+        idx += buf.length;
+    }
+    return buffer;
+}
+
+export function messageAcceptMimeTypeDecoder(buffer: Uint8Array, registry: MimeTypeRegistry) {
+    let idx = 0;
+    let types: MimeType<any>[] = [];
+    while (idx < buffer.length) {
+        const mimeIdOrLength = buffer[0];
+        if ((mimeIdOrLength >> 7 & 0x1) == 1) {
+            idx += 1;
+            const wellKnownId = mimeIdOrLength & 0x7F;
+            types.push(registry.getByWellKnown(wellKnownId));
+        } else {
+            idx += 1 + mimeIdOrLength;
+            const mimeTypeName = arrayBufferToUtf8String(buffer.slice(1, 1 + mimeIdOrLength));
+            types.push(registry.getByName(mimeTypeName));
+        }
+
+    }
+    return types;
+}
 
 
