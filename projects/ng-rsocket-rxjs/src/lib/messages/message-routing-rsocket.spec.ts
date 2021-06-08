@@ -4,7 +4,7 @@ import { RSocketClient, MimeTypeRegistry } from "ng-rsocket-rxjs";
 import { MessageRoutingRSocket } from "ng-rsocket-rxjs";
 import { WebsocketTransport } from "ng-rsocket-rxjs"
 import { MimeType } from "ng-rsocket-rxjs";
-import { BehaviorSubject, range, ReplaySubject, Subject, timer } from "rxjs";
+import { BehaviorSubject, of, range, ReplaySubject, Subject, timer } from "rxjs";
 import { flatMap, reduce } from 'rxjs/operators';
 import { arrayBufferToUtf8String } from '../utlities/conversions';
 
@@ -13,12 +13,18 @@ import { arrayBufferToUtf8String } from '../utlities/conversions';
 
 describe("request_patterns", () => {
     let socket: MessageRoutingRSocket;
-    beforeAll(() => {
+    beforeAll(done => {
 
         const transport = new WebsocketTransport("ws://localhost:8080/rsocket");
         const client = new RSocketClient(transport, MimeTypeRegistry.defaultRegistry());
         socket = new MessageRoutingRSocket(client);
+        socket.addRequestResponseHandler('/basic/setup-payload', ans => {
+            expect(ans).toEqual('Test-Client');
+            done();
+            return ans;
+        })
         client.establish({
+            data: 'Test-Client',
             dataMimeType: MimeType.APPLICATION_JSON,
             metadataMimeType: MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
             honorsLease: false,
@@ -27,6 +33,7 @@ describe("request_patterns", () => {
             minorVersion: 0,
             maxLifetime: 100000,
         });
+        
     })
     it("Returns Request Response payload", done => {
         socket.requestResponse('/basic/request-response', 'Hello World').subscribe(ans => {
@@ -94,6 +101,22 @@ describe("request_patterns", () => {
             done();
         })
     });
+    it("Handles Empty Request Response", done => {
+        socket.addRequestResponseHandler(
+            '/basic/empty-request-response',
+            data => {
+                expect(data).toBeUndefined();
+                return 'hello';
+            }
+        );
+        socket.requestResponse('/basic/empty-request-reverse-response', {
+            topic: '/basic/empty-request-response',
+            data: "\"empty\""
+        }).subscribe(ans => {
+            expect(ans).toEqual("hello");
+            done();
+        })
+    })
     it("Handles Request Stream", done => {
         socket.addRequestStreamHandler(
             '/basic/request-response',
@@ -213,4 +236,56 @@ describe("request_patterns", () => {
     afterAll(() => {
         socket.rsocket.close();
     })
+});
+
+describe("mimetypes", () => {
+    let socket: MessageRoutingRSocket;
+    let stringReverseMime: MimeType<string>;
+    let textPlainMime: MimeType<string>;
+    beforeAll(() => {
+
+        const transport = new WebsocketTransport("ws://localhost:8080/rsocket");
+        const client = new RSocketClient(transport, MimeTypeRegistry.defaultRegistry());
+        stringReverseMime = new MimeType('application/stringreverse',
+            {
+                encoder: (text: string) => new TextEncoder().encode(text.split("").reverse().join("")),
+                decoder: (buffer) => new TextDecoder().decode(buffer).split("").reverse().join("")
+            }
+        );
+        client.mimeTypeRegistry.registerMimeType(stringReverseMime);
+        textPlainMime = new MimeType('text/plain', {
+            encoder: text => new TextEncoder().encode(text),
+            decoder: buffer => new TextDecoder().decode(buffer)
+        });
+        client.mimeTypeRegistry.registerMimeType(textPlainMime);
+        socket = new MessageRoutingRSocket(client);
+        client.establish({
+            dataMimeType: MimeType.APPLICATION_OCTET_STREAM,
+            metadataMimeType: MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
+            honorsLease: false,
+            keepaliveTime: 30000,
+            majorVersion: 1,
+            minorVersion: 0,
+            maxLifetime: 100000,
+        });
+    });
+    // it("Correctly submits stringreverse mime type", done => {
+
+    //     socket.requestResponse('/basic/mime/stringreverse', "Hello World", stringReverseMime, stringReverseMime).subscribe(value => {
+    //         expect(value).toEqual("Hello World");
+    //         done();
+    //     });
+    // });
+    // it("Distinguishes between input and output mime type", done => {
+
+    //     socket.requestResponse('/basic/mime/stringreverse', "Hello World", stringReverseMime, textPlainMime).subscribe(value => {
+    //         expect(value).toEqual("Hello World");
+    //         done();
+    //     });
+    // });
+
+
+    afterAll(() => {
+        socket.rsocket.close();
+    });
 });

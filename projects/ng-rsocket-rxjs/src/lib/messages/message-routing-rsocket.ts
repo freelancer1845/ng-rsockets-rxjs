@@ -53,7 +53,7 @@ export class MessageRoutingRSocket {
         incomingMimeType: MimeType<I> = MimeType.APPLICATION_JSON,
         authentication?: Authentication): Observable<I> {
         return defer(() => {
-            const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication, outgoingMimeType);
+            const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication, outgoingMimeType, [incomingMimeType]);
             const dataBuffer = outgoingMimeType.coder.encoder(payload, this.rsocket.mimeTypeRegistry);
             const metadataBuffer = MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.coder.encoder(metaData, this.rsocket.mimeTypeRegistry);
 
@@ -74,7 +74,7 @@ export class MessageRoutingRSocket {
         authentication?: Authentication,
         requester?: Observable<number>): Observable<I> {
         return defer(() => {
-            const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication, outgoingMimeType);
+            const metaData: CompositeMetaData[] = this.standardMetadataConstructor(route, authentication, outgoingMimeType, [incomingMimeType]);
             const dataBuffer = outgoingMimeType.coder.encoder(payload, this.rsocket.mimeTypeRegistry);
             const metadataBuffer = MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA.coder.encoder(metaData, this.rsocket.mimeTypeRegistry);
 
@@ -114,7 +114,7 @@ export class MessageRoutingRSocket {
         ), this._requestResponseMappers);
     }
 
-    private standardMetadataConstructor(route: string, auth?: Authentication, dataMimeTypes?: MimeType): CompositeMetaData[] {
+    private standardMetadataConstructor(route: string, auth?: Authentication, dataMimeTypes?: MimeType, acceptMimeTypes?: MimeType[]): CompositeMetaData[] {
         const metaData: CompositeMetaData[] = [];
         metaData.push({
             type: MimeType.MESSAGE_X_RSOCKET_ROUTING,
@@ -132,6 +132,13 @@ export class MessageRoutingRSocket {
                 data: dataMimeTypes
             })
         }
+        if (acceptMimeTypes != undefined && acceptMimeTypes.length > 0) {
+            metaData.push({
+                type: MimeType.MESSAGE_X_RSOCKET_ACCEPT_MIME_TYPES,
+                data: acceptMimeTypes
+            });
+        }
+        console.log(metaData);
         return metaData;
     }
 
@@ -139,8 +146,10 @@ export class MessageRoutingRSocket {
         return defer(() => {
             const mapper = this.getMapping(this.getTopic(payload), this._requestResponseMappers);
             log.debug("Executing Request Response Handler for: " + mapper.route);
-            const _payload = mapper.incomingMimeType.coder.decoder(payload.data, this.rsocket.mimeTypeRegistry);
-
+            let _payload = undefined;
+            if (payload.data.length > 0) {
+                _payload = mapper.incomingMimeType.coder.decoder(payload.data, this.rsocket.mimeTypeRegistry);
+            }
             const result = mapper.handler(_payload);
             let obs: Observable<any>;
             if (result instanceof Observable) {
@@ -174,7 +183,10 @@ export class MessageRoutingRSocket {
         const mapper = this.getMapping(this.getTopic(payload), this._requestStreamMappers);
         const stream = defer(() => {
             log.debug("Executing Request Stream Handler for: " + mapper.route);
-            const _payload = mapper.incomingMimeType.coder.decoder(payload.data, this.rsocket.mimeTypeRegistry);
+            let _payload = undefined;
+            if (payload.data.length > 0) {
+                _payload = mapper.incomingMimeType.coder.decoder(payload.data, this.rsocket.mimeTypeRegistry);
+            }
 
             const result = mapper.handler(_payload);
             let obs: Observable<any>;

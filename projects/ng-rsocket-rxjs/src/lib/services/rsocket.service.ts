@@ -1,8 +1,9 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
-import { ReplaySubject, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Observable, ReplaySubject, Subject } from 'rxjs';
+import { startWith, switchMap, takeUntil } from 'rxjs/operators';
 import { RSocketBuilder } from '../api/rsocket-factory';
 import { MimeType } from '../api/rsocket-mime.types';
+import { RSocketState } from '../api/rsocket.api';
 import { factory } from '../core/config-log4j';
 import { RSocketConfig } from '../core/config/rsocket-config';
 import { MessageRoutingRSocket } from '../messages/message-routing-rsocket';
@@ -75,6 +76,13 @@ export class RSocketService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.$destroy.next(1);
+  }
+
+  public state(): Observable<RSocketState> {
+    return this._socket.pipe(
+      switchMap(v => v.rsocket.state()),
+      startWith(RSocketState.Disconnected),
+    );
   }
 
   public route(route: string): FluentRequest<any, any> {

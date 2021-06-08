@@ -4,7 +4,9 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.rsocket.RSocketRequester;
+import org.springframework.messaging.rsocket.annotation.ConnectMapping;
 import org.springframework.stereotype.Controller;
 
 import lombok.Data;
@@ -13,6 +15,18 @@ import reactor.core.publisher.Mono;
 
 @Controller
 public class TestController {
+
+    @ConnectMapping
+    public void connectClient(RSocketRequester requester, @Payload(required = false) String client) {
+        System.out.println(requester);
+        if (client == null) {
+            System.out.println("No setup payload provided");
+        } else {
+            requester.route("/basic/setup-payload").data(client).retrieveMono(String.class).subscribe();
+            System.out.println(client);
+        }
+    }
+
 
     @MessageMapping("/basic/request-response")
     public Mono<String> basicRequestResponse(String request) {
@@ -61,6 +75,11 @@ public class TestController {
         return requester.route(request.topic).data("\"" + request.data + "\"").retrieveMono(String.class);
     }
 
+    @MessageMapping("/basic/empty-request-reverse-response")
+    public Mono<String> emptyReverseRequestResponse(Request request, RSocketRequester requester) {
+        return requester.route(request.topic).retrieveMono(String.class);
+    }
+
     @MessageMapping("/basic/request-reverse-stream")
     public Mono<Integer> reverseRequestStream(Request request, RSocketRequester requester) {
         return requester.route(request.topic).data(request.data).retrieveFlux(Integer.class).limitRate(5).reduce(0,
@@ -74,6 +93,10 @@ public class TestController {
         requester.rsocket().dispose();
     }
 
+    @MessageMapping("/basic/mime/stringreverse")
+    public Mono<String> target(String message) {
+        return Mono.just(message);
+    }
 
     @Data
     public static final class Request {
