@@ -1,19 +1,18 @@
 import { TestBed } from '@angular/core/testing';
-import { RSocketRxjsModule, RSocketService, MimeType } from 'ng-rsocket-rxjs';
+import { RSocketRxjsModule, RSocketService } from 'ng-rsocket-rxjs';
+import { WellKnownMimeTypes } from 'rsocket-rxjs';
 
 
-describe('RSocketRxjsModule.forRoot', () => {
+describe('RSocketRxjsModule.forRoot and FluentRequest', () => {
   let service: RSocketService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [RSocketRxjsModule.forRoot({
         url: "ws://localhost:8080/rsocket",
-        rsocketConfig: {
-          keepaliveTime: 30000,
-          maxLifetime: 100000,
-          metadataMimeType: MimeType.MESSAGE_X_RSOCKET_COMPOSITE_METADATA,
-        },
+        dataMimeType: WellKnownMimeTypes.APPLICATION_JSON.name,
+        keepaliveTime: 30000,
+        maxLifetime: 100000,
         reconnectTimeout: 5000
       })],
     });
@@ -60,7 +59,7 @@ describe('RSocketRxjsModule.forRoot', () => {
   });
 });
 
-describe('RSocketRxjsModule.forRoot', () => {
+describe('Import RSocketRxjsModule without forRoot', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({

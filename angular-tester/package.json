@@ -22,7 +22,7 @@
     "rxjs": "~6.5.5",
     "tslib": "^2.0.0",
     "zone.js": "~0.10.3",
-    "ng-rsocket-rxjs": "file:../dist/ng-rsocket-rxjs"
+    "rsocket-rxjs": "file:../../../publish/rsocket-rxjs"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "~0.1000.2",

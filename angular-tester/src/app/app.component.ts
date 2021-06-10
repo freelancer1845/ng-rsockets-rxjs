@@ -13,7 +13,6 @@ export class AppComponent implements OnInit {
   title = 'angular-tester';
 
   constructor(private service: RSocketService) {
-
   }
 
   ngOnInit(): void {

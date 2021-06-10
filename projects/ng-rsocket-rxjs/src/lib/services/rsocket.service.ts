@@ -1,19 +1,15 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
-import { Observable, ReplaySubject, Subject } from 'rxjs';
+import { MessageRoutingRSocket, RSocketConfig, SpringRSocketMessagingBuilder, WellKnownMimeTypes } from 'rsocket-rxjs';
+import { RSocketState } from 'rsocket-rxjs/dist/lib/api/rsocket.api';
+import { Observable, ReplaySubject, Subject, Subscription } from 'rxjs';
 import { startWith, switchMap, takeUntil } from 'rxjs/operators';
-import { RSocketBuilder } from '../api/rsocket-factory';
-import { MimeType } from '../api/rsocket-mime.types';
-import { RSocketState } from '../api/rsocket.api';
-import { factory } from '../core/config-log4j';
-import { RSocketConfig } from '../core/config/rsocket-config';
-import { MessageRoutingRSocket } from '../messages/message-routing-rsocket';
+import { RSocketRxjsModuleConfig } from '../ng-rsocket-rxjs.module';
 import { FluentRequest } from './rsocket-fluent';
 
-const log = factory.getLogger("rsocket.RSocketService");
 
 
 export class RSocketServiceOptions {
-  constructor(public readonly config: Partial<RSocketConfig<any, any>>,
+  constructor(public readonly config: Partial<RSocketConfig>,
     public readonly url: string,
     public readonly reconnectTimeout?: number) { }
 }
@@ -24,68 +20,58 @@ export class RSocketService implements OnDestroy {
   private $destroy = new Subject();
   private _socket: ReplaySubject<MessageRoutingRSocket> = new ReplaySubject(1);
 
-  private _defaultIncomingMimeType = MimeType.APPLICATION_JSON;
-  private _defaultOutgoingMimeType = MimeType.APPLICATION_JSON;
+  private _defaultIncomingMimeType = WellKnownMimeTypes.APPLICATION_JSON.name;
+  private _defaultOutgoingMimeType = WellKnownMimeTypes.APPLICATION_JSON.name;
+
+  private _subscription: Subscription;
 
   constructor(private ngZone: NgZone) {
   }
 
-  public connect(options: RSocketServiceOptions) {
-    let builder = new RSocketBuilder();
-    if (options.config != undefined) {
-      const config = options.config;
+  public connect(config: RSocketRxjsModuleConfig) {
+    let builder = new SpringRSocketMessagingBuilder();
 
-      if (config.dataMimeType != undefined) {
-        builder = builder.dataMimeType(config.dataMimeType);
-        this._defaultIncomingMimeType = config.dataMimeType;
-        this._defaultOutgoingMimeType = config.dataMimeType;
-      }
-      if (config.metadataMimeType != undefined) {
-        builder = builder.metaDataMimeType(config.metadataMimeType);
-      }
-      if (config.maxLifetime != undefined) {
-        builder = builder.maxLifetime(config.maxLifetime);
-      }
-      if (config.keepaliveTime != undefined) {
-        builder = builder.keepaliveTime(config.keepaliveTime);
-      }
-      if (config.resumeIdentificationToken) {
-        builder = builder.resumeIdentificationToken(config.resumeIdentificationToken);
-      }
-      if (config.honorsLease) {
-        if (config.honorsLease == true) {
-          builder = builder.honorsLease();
-        }
-      }
-      if (config.data != undefined) {
-        builder = builder.setupData(config.data);
-      }
-      if (config.metaData != undefined) {
-        builder = builder.setupMetadata(config.metaData);
-      }
+    if (config.dataMimeType != undefined) {
+      builder = builder.dataMimeType(config.dataMimeType);
+      this._defaultIncomingMimeType = config.dataMimeType;
+      this._defaultOutgoingMimeType = config.dataMimeType;
     }
-    if (options.reconnectTimeout !== undefined) {
-      builder = builder.automaticReconnect(options.reconnectTimeout);
+    if (config.maxLifetime != undefined) {
+      builder = builder.maxLifetime(config.maxLifetime);
+    }
+    if (config.keepaliveTime != undefined) {
+      builder = builder.keepaliveTime(config.keepaliveTime);
+    }
+    if (config.connectMappingData != undefined) {
+      builder = builder.connectMappingData(config.connectMappingData);
+    }
+    if (config.connectMappingRoute != undefined) {
+      builder = builder.connectMappingRoute(config.connectMappingRoute);
+    }
+    if (config.reconnectTimeout !== undefined) {
+      builder = builder.automaticReconnect(config.reconnectTimeout);
     } else {
       builder = builder.automaticReconnect();
     }
-    builder.connectionString(options.url).messageRSocket().pipe(takeUntil(this.$destroy)).subscribe((socket) => {
+    this._subscription = builder.connectionString(config.url).build().subscribe((socket) => {
       this._socket.next(socket);
-    });
+    }) as unknown as Subscription;
   }
 
   ngOnDestroy(): void {
-    this.$destroy.next(1);
+    this._subscription.unsubscribe();
   }
 
   public state(): Observable<RSocketState> {
     return this._socket.pipe(
-      switchMap(v => v.rsocket.state()),
+      switchMap(v => {
+        return v.state();
+      }),
       startWith(RSocketState.Disconnected),
     );
   }
 
-  public route(route: string): FluentRequest<any, any> {
+  public route(route: string): FluentRequest {
     return new FluentRequest(this.ngZone, this._socket, route, null, this._defaultOutgoingMimeType, this._defaultIncomingMimeType);
   }
 

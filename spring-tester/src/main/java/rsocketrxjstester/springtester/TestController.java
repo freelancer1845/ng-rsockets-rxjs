@@ -18,6 +18,11 @@ public class TestController {
 
     @ConnectMapping
     public void connectClient(RSocketRequester requester, @Payload(required = false) String client) {
+        System.out.println("Default Connect mapping called");
+    }
+
+    @ConnectMapping("connect-client")
+    public void connectClientRouted(RSocketRequester requester, @Payload(required = false) String client) {
         System.out.println(requester);
         if (client == null) {
             System.out.println("No setup payload provided");

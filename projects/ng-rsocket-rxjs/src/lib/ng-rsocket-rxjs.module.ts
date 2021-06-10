@@ -1,5 +1,4 @@
 import { ModuleWithProviders, NgModule, NgZone } from '@angular/core';
-import { RSocketConfig } from './core/config/rsocket-config';
 import { RSocketService } from './services/rsocket.service';
 
 export interface RSocketRxjsModuleConfig {
@@ -7,8 +6,12 @@ export interface RSocketRxjsModuleConfig {
    * Either provide a full RSocketConfiguration or just provide an url which should work nicely with spring boot RSocket (in websocket mode)
    */
   url: string;
-  rsocketConfig?: Partial<RSocketConfig<any, any>>;
   reconnectTimeout?: number;
+  connectMappingData?: any,
+  connectMappingRoute?: any,
+  dataMimeType?: string,
+  maxLifetime?: number,
+  keepaliveTime?: number
 }
 
 
@@ -22,11 +25,7 @@ export class RSocketRxjsModule {
 
     const serviceFactory = (zone: NgZone) => {
       const s = new RSocketService(zone);
-      s.connect({
-        url: config.url,
-        config: config.rsocketConfig,
-        reconnectTimeout: config.reconnectTimeout
-      });
+      s.connect(config);
       return s;
     }
     return {
