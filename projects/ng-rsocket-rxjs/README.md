@@ -44,8 +44,6 @@ Basic library implementing RSockets RC 1 (Version 1.0).
 ```typescript
 RSocketRxjsModule.forRoot({
         url: "ws://<host>:8080/<endpoint>",
-        rsocketConfig: {
-        },
         reconnectTimeout: 5000
       })
 ```
