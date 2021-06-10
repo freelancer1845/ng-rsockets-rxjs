@@ -1,4 +1,5 @@
 import { ModuleWithProviders, NgModule, NgZone } from '@angular/core';
+import { SpringRSocketMessagingBuilder } from 'rsocket-rxjs';
 import { RSocketService } from './services/rsocket.service';
 
 export interface RSocketRxjsModuleConfig {
@@ -11,7 +12,8 @@ export interface RSocketRxjsModuleConfig {
   connectMappingRoute?: any,
   dataMimeType?: string,
   maxLifetime?: number,
-  keepaliveTime?: number
+  keepaliveTime?: number,
+  builderCustomizer?: (builder: SpringRSocketMessagingBuilder) => void
 }
 
 

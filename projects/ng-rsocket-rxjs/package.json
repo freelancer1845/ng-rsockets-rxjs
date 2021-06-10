@@ -4,7 +4,7 @@
   "peerDependencies": {
     "@angular/common": "^10.0.14",
     "@angular/core": "^10.0.14",
-    "rsocket-rxjs": "^0.1.1-1"
+    "rsocket-rxjs": "^0.1.1"
   },
   "dependencies": {
     "tslib": "^2.0.0"

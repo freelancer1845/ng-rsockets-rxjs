@@ -53,7 +53,11 @@ export class RSocketService implements OnDestroy {
     } else {
       builder = builder.automaticReconnect();
     }
-    this._subscription = builder.connectionString(config.url).build().subscribe((socket) => {
+    builder = builder.connectionString(config.url);
+    if (config.builderCustomizer) {
+      config.builderCustomizer(builder);
+    }
+    this._subscription = builder.build().subscribe((socket) => {
       this._socket.next(socket);
     }) as unknown as Subscription;
   }

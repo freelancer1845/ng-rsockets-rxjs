@@ -19,7 +19,7 @@
     "@angular/platform-browser": "~11.2.14",
     "@angular/platform-browser-dynamic": "~11.2.14",
     "@angular/router": "~11.2.14",
-    "rsocket-rxjs": "^0.1.1-1",
+    "rsocket-rxjs": "^0.1.1",
     "rxjs": "~6.5.5",
     "tslib": "^2.0.0",
     "typescript-logging": "^1.0.0",

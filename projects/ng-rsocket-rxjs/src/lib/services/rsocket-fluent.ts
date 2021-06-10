@@ -39,11 +39,11 @@ export class FluentRequest {
         return new FluentRequest(this._zone, this.socketHolder, this._route, this._data, this._outgoingMimeType, this._incomingMimeType, this._authentication, this._requester);
     }
 
-    public requestMimetype<L>(type: string): FluentRequest {
+    public requestMimetype(type: string): FluentRequest {
         return new FluentRequest(this._zone, this.socketHolder, this._route, this._data, type, this._incomingMimeType, this._authentication, this._requester);
     }
 
-    public answerMimetype<L>(type: string): FluentRequest {
+    public answerMimetype(type: string): FluentRequest {
         return new FluentRequest(this._zone, this.socketHolder, this._route, this._data, this._outgoingMimeType, type, this._authentication, this._requester);
     }
 
@@ -56,7 +56,7 @@ export class FluentRequest {
         return this.copy();
     }
 
-    public requestResponse<T>(): Observable<T> {
+    public requestResponse<T = any>(): Observable<T> {
         return this.socketHolder.pipe(
             take(1),
             concatMap(
@@ -73,7 +73,7 @@ export class FluentRequest {
         );
     }
 
-    public requestStream<T>(): Observable<T> {
+    public requestStream<T = any>(): Observable<T> {
         return this.socketHolder.pipe(
             take(1),
             concatMap(
