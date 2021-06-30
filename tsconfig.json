@@ -17,9 +17,8 @@
     ],
     "paths": {
       "ng-rsocket-rxjs": [
-        "dist/ng-rsocket-rxjs/ng-rsocket-rxjs",
         "dist/ng-rsocket-rxjs"
-      ]
+      ],
     }
   }
 }
