@@ -2,8 +2,8 @@
   "name": "ng-rsocket-rxjs",
   "version": "0.0.12",
   "peerDependencies": {
-    "@angular/common": "^10.0.0 || ^11.0.0 || ^12.0.0",
-    "@angular/core": "^10.0.0 || ^11.0.0 || ^12.0.0",
+    "@angular/common": "^12.0.0",
+    "@angular/core": "^12.0.0",
     "rsocket-rxjs": "^0.1.2"
   },
   "dependencies": {
