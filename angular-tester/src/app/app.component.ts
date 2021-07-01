@@ -1,8 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { WebsocketTransport, RSocketClient, MessageRoutingRSocket, MimeTypes, RSocketService } from 'ng-rsocket-rxjs';
-import { interval } from 'rxjs';
-
-import { repeatWhen } from 'rxjs/operators';
+import { RSocketService } from 'ng-rsocket-rxjs';
 
 @Component({
   selector: 'app-root',

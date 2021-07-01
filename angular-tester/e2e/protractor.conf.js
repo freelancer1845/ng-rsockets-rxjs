@@ -13,7 +13,11 @@ exports.config = {
     './src/**/*.e2e-spec.ts'
   ],
   capabilities: {
-    browserName: 'chrome'
+    browserName: 'chrome',
+    "chromeOptions": {
+      binary: "/usr/bin/chromium-browser",
+      args: [ "--headless", "--disable-gpu" ]
+    },
   },
   directConnect: true,
   baseUrl: 'http://localhost:4200/',
