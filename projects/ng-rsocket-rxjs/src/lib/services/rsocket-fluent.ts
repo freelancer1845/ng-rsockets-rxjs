@@ -1,8 +1,7 @@
 import { NgZone } from '@angular/core';
-import { MessageRoutingRSocket, Authentication } from 'rsocket-rxjs';
-import { pipe } from 'rxjs';
+import { Authentication, MessageRoutingRSocket } from 'rsocket-rxjs';
 import { Observable, OperatorFunction } from 'rxjs';
-import { concatMap, flatMap, map, take } from 'rxjs/operators';
+import { concatMap, map, take } from 'rxjs/operators';
 
 function zoneFix<T>(zone: NgZone): OperatorFunction<T, T> {
     return (source) => {

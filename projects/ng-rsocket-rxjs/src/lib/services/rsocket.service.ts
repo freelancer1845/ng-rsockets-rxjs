@@ -2,7 +2,7 @@ import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { MessageRoutingRSocket, RSocketConfig, SpringRSocketMessagingBuilder, WellKnownMimeTypes } from 'rsocket-rxjs';
 import { RSocketState } from 'rsocket-rxjs/dist/lib/api/rsocket.api';
 import { Observable, ReplaySubject, Subject, Subscription } from 'rxjs';
-import { startWith, switchMap, takeUntil } from 'rxjs/operators';
+import { startWith, switchMap } from 'rxjs/operators';
 import { RSocketRxjsModuleConfig } from '../ng-rsocket-rxjs.module';
 import { FluentRequest } from './rsocket-fluent';
 
