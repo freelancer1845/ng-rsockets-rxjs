@@ -57,7 +57,6 @@ export class FluentRequest {
 
     public requestResponse<T = any>(): Observable<T> {
         return this.socketHolder.pipe(
-            take(1),
             concatMap(
                 socket => socket.requestResponse({
                     route: this._route,
@@ -74,7 +73,6 @@ export class FluentRequest {
 
     public requestStream<T = any>(): Observable<T> {
         return this.socketHolder.pipe(
-            take(1),
             concatMap(
                 socket => socket.requestStream({
                     route: this._route,
@@ -93,9 +91,7 @@ export class FluentRequest {
     }
 
     public fireAndForget(): void {
-        this.socketHolder.pipe(
-            take(1)
-        ).subscribe({
+        this.socketHolder.subscribe({
             next: socket => {
                 socket.requestFNF({
                     route: this._route,

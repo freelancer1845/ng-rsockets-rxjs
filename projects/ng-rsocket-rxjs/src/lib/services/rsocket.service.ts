@@ -1,6 +1,8 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { MessageRoutingRSocket, RSocketConfig, SpringRSocketMessagingBuilder, WellKnownMimeTypes } from 'rsocket-rxjs';
+import { RSocketState } from 'rsocket-rxjs/dist/lib/api/rsocket.api';
 import { ReplaySubject, Subject, Subscription } from 'rxjs';
+import { filter, map, skipWhile, switchMap, take } from 'rxjs/operators';
 import { RSocketRxjsModuleConfig } from '../ng-rsocket-rxjs.module';
 import { FluentRequest } from './rsocket-fluent';
 
@@ -75,7 +77,17 @@ export class RSocketService implements OnDestroy {
   // }
 
   public route(route: string): FluentRequest {
-    return new FluentRequest(this.ngZone, this._socket, route, null, this._defaultOutgoingMimeType, this._defaultIncomingMimeType);
+    return new FluentRequest(this.ngZone, this.getNextConnectedSocket(), route, null, this._defaultOutgoingMimeType, this._defaultIncomingMimeType);
+  }
+
+  private getNextConnectedSocket() {
+    return this._socket.pipe(
+      switchMap(socket => socket.state().pipe(
+        filter(state => state == RSocketState.Connected),
+        map(state => socket)
+      )),
+      take(1)
+    );
   }
 
 
